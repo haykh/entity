@@ -1,0 +1,86 @@
+[simulation]
+  name = "wald"
+  engine = "grpic"
+  runtime = 500.0
+
+[grid]
+  resolution = [256, 256]
+  extent = [[1.0, 6.0]]
+
+  [grid.metric]
+    metric = "qkerr_schild"
+    qsph_r0 = 0.0
+    qsph_h = 0.0
+    ks_a = 0.95
+
+  [grid.boundaries]
+    fields = [["MATCH"]]
+    particles = [["ABSORB"]]
+
+    [grid.boundaries.absorb]
+      ds = 1.0
+
+[scales]
+  larmor0 = 0.025
+  skindepth0 = 0.5
+
+[algorithms]
+  current_filters = 4
+
+  [algorithms.gr]
+    pusher_niter = 10
+    pusher_eps = 1e-2
+
+  [algorithms.timestep]
+    CFL = 0.5
+    correction = 1.0
+
+  [algorithms.toggles]
+    deposit = true
+    fieldsolver = true
+
+[particles]
+  ppc0 = 4.0
+  use_weights = true
+  clear_interval = 100
+
+  [[particles.species]]
+  label = "e-"
+  mass = 1.0
+  charge = -1.0
+  maxnpart = 2e8
+  pusher = "Boris"
+  
+  [[particles.species]]
+  label = "e+"
+  mass = 1.0
+  charge = 1.0
+  maxnpart = 2e8
+  pusher = "Boris"
+
+[setup]
+  multiplicity = 1.0
+  sigma_max = 1000.0
+  temperature = 0.01
+  xi_min = [1.5, 0.0]
+  xi_max = [4.0, 3.14159265]
+  m_eps = 1.0
+
+[output]
+  format = "hdf5"
+   separate_files = false
+
+  [output.fields]
+    interval_time = 1.0
+    quantities = ["D", "B", "N_1", "N_2", "A"]
+    
+  [output.particles]
+    enable = false
+
+  [output.spectra]
+    enable = false
+
+[diagnostics]
+  interval = 2
+  colored_stdout = true
+  blocking_timers = true

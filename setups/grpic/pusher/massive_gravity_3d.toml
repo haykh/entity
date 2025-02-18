@@ -1,0 +1,84 @@
+[simulation]
+  name = "massive_3d"
+  engine = "grpic"
+  runtime = 1000.0
+
+[grid]
+  resolution = [128, 128]
+  extent = [[0.1, 15.0]]
+
+  [grid.metric]
+    metric = "qkerr_schild"
+    qsph_r0 = 0.0 
+    qsph_h = 0.0
+    ks_a = 0.995
+
+  [grid.boundaries]
+    fields = [["MATCH"]]
+    particles = [["ABSORB"]]
+
+    [grid.boundaries.absorb]
+      ds = 0.5
+
+[scales]
+  larmor0 = 2e-3
+  skindepth0 = 0.1
+
+[algorithms]
+  current_filters = 4
+
+  [algorithms.gr]
+    pusher_niter = 20
+    pusher_eps = 1e-3
+
+  [algorithms.timestep]
+    CFL = 0.8
+
+  [algorithms.toggles]
+    deposit = false
+    fieldsolver = false
+
+[particles]
+  ppc0 = 4.0
+
+  [[particles.species]]
+  label = "e-"
+  mass = 1.0
+  charge = 0.0
+  maxnpart = 1e1
+
+  [[particles.species]]
+  label = "e+"
+  mass = 1.0
+  charge = 0.0
+  maxnpart = 1e1
+
+[setup]
+  x1s  = [10.00000]
+  y1s  = [1.570796]
+  z1s  = [0.000000]
+  ux1s = [0.2181435531189523]
+  uy1s = [2.89]
+  uz1s = [1.05769]
+
+[output]
+  format = "hdf5"
+
+  [output.fields]
+    enable = true
+    interval_time = 5.0
+    quantities = ["D", "B"]
+
+  [output.particles]
+    enable = true
+    stride = 1
+    interval_time = 0.5
+    species = []
+
+  [output.spectra]
+    enable = false
+
+[diagnostics]
+  interval = 10
+  colored_stdout = true
+  blocking_timers = true

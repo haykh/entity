@@ -335,7 +335,7 @@ namespace kernel {
           if constexpr (S == SimEngine::SRPIC) {
             global_metric.template transform_xyz<Idx::T, Idx::XYZ>(x_Cd_, u_Ph, u_Cd);
           } else if constexpr (S == SimEngine::GRPIC) {
-            global_metric.template transform<Idx::T, Idx::D>(x_Cd, u_Ph, u_Cd);
+            global_metric.template transform<Idx::PD, Idx::D>(x_Cd, u_Ph, u_Cd);
           } else {
             raise::KernelError(HERE, "Unknown simulation engine");
           }
@@ -380,7 +380,7 @@ namespace kernel {
           if constexpr (S == SimEngine::SRPIC) {
             global_metric.template transform_xyz<Idx::T, Idx::XYZ>(x_Cd, u_Ph, u_Cd);
           } else if constexpr (S == SimEngine::GRPIC) {
-            global_metric.template transform<Idx::T, Idx::D>(x_Cd, u_Ph, u_Cd);
+            global_metric.template transform<Idx::PD, Idx::D>(x_Cd, u_Ph, u_Cd);
           } else {
             raise::KernelError(HERE, "Unknown simulation engine");
           }

@@ -1,0 +1,93 @@
+[simulation]
+  name = "boris_a0"
+  engine = "grpic"
+  runtime = 500.0
+
+[grid]
+  resolution = [128,128]
+  extent = [[1.2, 20.0]]
+
+  [grid.metric]
+    metric = "kerr_schild"
+    qsph_r0 = 0.0 
+    qsph_h = 0.0
+    ks_a = 0.0
+
+  [grid.boundaries]
+    fields = [["MATCH"]]
+    particles = [["ABSORB"]]
+
+    [grid.boundaries.absorb]
+      ds = 0.5
+
+[scales]
+  larmor0 = 5.0
+  skindepth0 = 1e0
+
+[algorithms]
+  current_filters = 4
+
+  [algorithms.gr]
+    pusher_niter = 10
+    pusher_eps = 1e-6
+
+  [algorithms.timestep]
+    CFL = 1.0
+
+  [algorithms.toggles]
+    deposit = false
+    fieldsolver = false
+
+[particles]
+  ppc0 = 1.0
+
+  [[particles.species]]
+  label = "e+"
+  mass = 1.0
+  charge = 1.0
+  maxnpart = 1e0
+
+  [[particles.species]]
+  label = "e-"
+  mass = 1.0
+  charge = -1.0
+  maxnpart = 1e0
+
+[setup]
+  # Fig. 6.4 from Kolos, Stuchlik and Tursunov (2015) 
+  x1s  = [5.77]
+  y1s  = [1.5707963267948966]
+  z1s  = [0.000000]
+  ux1s = [0.43766578249336874]
+  uy1s = [0.000000]
+  uz1s = [1.1707100000000000]
+
+  # Fig. 5.3 from Kolos, Stuchlik and Tursunov (2015)
+  x2s  = [6.79]
+  y2s  = [1.5707963267948966]
+  z2s  = [0.000000]
+  ux2s = [0.7398747390396659]
+  uy2s = [0.000000]
+  uz2s = [12.610410000000002]
+
+[output]
+  format = "hdf5"
+
+  [output.fields]
+    enable = true
+    interval_time = 1.0
+    quantities = ["D", "B"]
+
+  [output.particles]
+    enable = true
+    stride = 1
+    interval_time = 0.2
+    species = []
+
+  [output.spectra]
+    enable = false
+
+[diagnostics]
+  interval = 10
+  colored_stdout = true
+  blocking_timers = true

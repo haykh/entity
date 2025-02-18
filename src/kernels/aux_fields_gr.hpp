@@ -230,6 +230,77 @@ namespace kernel::gr {
       }
     }
   };
+
+  /**
+   * @brief Kernel for computing time average of B and D
+   * @tparam M Metric
+   */
+  template <class M>
+  class TimeAverageDB_kernel {
+    static_assert(M::is_metric, "M must be a metric class");
+    static constexpr auto D = M::Dim;
+
+    const ndfield_t<D, 6> BDf;
+    ndfield_t<D, 6>       BDf0;
+    const M               metric;
+
+  public:
+    TimeAverageDB_kernel(const ndfield_t<D, 6>& BDf,
+                         const ndfield_t<D, 6>& BDf0,
+                         const M&               metric)
+      : BDf  { BDf }
+      , BDf0 { BDf0 }
+      , metric { metric } {}
+
+    Inline void operator()(index_t i1, index_t i2) const {
+      if constexpr (D == Dim::_2D) {
+        BDf0(i1, i2, em::bx1) = HALF * (BDf0(i1, i2, em::bx1) + BDf(i1, i2, em::bx1)); 
+        BDf0(i1, i2, em::bx2) = HALF * (BDf0(i1, i2, em::bx2) + BDf(i1, i2, em::bx2)); 
+        BDf0(i1, i2, em::bx3) = HALF * (BDf0(i1, i2, em::bx3) + BDf(i1, i2, em::bx3)); 
+        BDf0(i1, i2, em::ex1) = HALF * (BDf0(i1, i2, em::ex1) + BDf(i1, i2, em::ex1)); 
+        BDf0(i1, i2, em::ex2) = HALF * (BDf0(i1, i2, em::ex2) + BDf(i1, i2, em::ex2)); 
+        BDf0(i1, i2, em::ex3) = HALF * (BDf0(i1, i2, em::ex3) + BDf(i1, i2, em::ex3)); 
+      } else {
+        raise::KernelError(
+          HERE,
+          "ComputeAuxH_kernel: 2D implementation called for D != 2");
+      }
+    }
+  };
+
+  /**
+   * @brief Kernel for computing time average of J
+   * @tparam M Metric
+   */
+  template <class M>
+  class TimeAverageJ_kernel {
+    static_assert(M::is_metric, "M must be a metric class");
+    static constexpr auto D = M::Dim;
+
+    ndfield_t<D, 3> Jf;
+    const ndfield_t<D, 3>       Jf0;
+    const M               metric;
+
+  public:
+    TimeAverageJ_kernel(const ndfield_t<D, 3>& Jf,
+                        const ndfield_t<D, 3>& Jf0,
+                        const M&               metric)
+      : Jf  { Jf }
+      , Jf0 { Jf0 }
+      , metric { metric } {}
+
+    Inline void operator()(index_t i1, index_t i2) const {
+      if constexpr (D == Dim::_2D) {
+        Jf(i1, i2, cur::jx1) = HALF * (Jf0(i1, i2, cur::jx1) + Jf(i1, i2, cur::jx1)); 
+        Jf(i1, i2, cur::jx2) = HALF * (Jf0(i1, i2, cur::jx2) + Jf(i1, i2, cur::jx2)); 
+        Jf(i1, i2, cur::jx3) = HALF * (Jf0(i1, i2, cur::jx3) + Jf(i1, i2, cur::jx3)); 
+      } else {
+        raise::KernelError(
+          HERE,
+          "ComputeAuxH_kernel: 2D implementation called for D != 2");
+      }
+    }
+  };
 } // namespace kernel::gr
 
 #endif // KERNELS_AUX_FIELDS_GR_HPP
