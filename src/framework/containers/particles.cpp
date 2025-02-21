@@ -111,6 +111,7 @@ namespace ntt {
         }
       }, npart_tag_i);
       npptag_vec.push_back(npart_tag_i);
+    }
 
 
     // count the offsets on the host and copy to device
