@@ -99,7 +99,7 @@ namespace ntt {
     //   npptag_vec[t] = npptag_h(t);
     // }
 
-    std::vector<std::size_t> npart_tag;
+    std::vector<std::size_t> npptag_vec;
     for (std::size_t t { 0 }; t < num_tags; ++t) {
       std::size_t npart_tag_i = 0;
       Kokkos::parallel_reduce(
@@ -110,10 +110,8 @@ namespace ntt {
           loc_npart_tag++;
         }
       }, npart_tag_i);
-      npart_tag.push_back(npart_tag_i);
+      npptag_vec.push_back(npart_tag_i);
 
-    std::vector<std::size_t> npptag_vec(num_tags);
-    Kokkos::deep_copy(npptag_vec, npart_tag);
 
     // count the offsets on the host and copy to device
     array_t<std::size_t*> tag_offsets("tag_offsets", num_tags - 3);
