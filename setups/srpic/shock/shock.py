@@ -2,7 +2,7 @@ import nt2.read as nt2r
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-data = nt2r.Data("shock-03.h5")
+data = nt2r.Data("shock.h5")
 
 
 def frame(ti, f):
@@ -55,7 +55,7 @@ def frame(ti, f):
     axs = [fig.add_subplot(gs[i]) for i in range(len(quantities))]
 
     for ax, q in zip(axs, quantities):
-        q["compute"](f).coarsen(x=2, y=2).mean().plot(
+        q["compute"](f.isel(t=ti)).plot(
             ax=ax,
             cmap=q["cmap"],
             norm=q["norm"],

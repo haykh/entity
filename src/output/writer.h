@@ -37,6 +37,8 @@ namespace out {
     adios2::Engine m_writer;
     adios2::Mode   m_mode { adios2::Mode::Write };
 
+    bool m_separate_files;
+
     // global shape of the fields array to output
     std::vector<std::size_t> m_flds_g_shape;
     // local corner of the fields array to output
@@ -64,7 +66,7 @@ namespace out {
     std::vector<OutputSpecies> m_prtl_writers;
     std::vector<OutputSpectra> m_spectra_writers;
 
-    bool m_writing_mode { false };
+    WriteModeTags m_active_mode { WriteMode::None };
 
   public:
     Writer() {}
@@ -73,7 +75,7 @@ namespace out {
 
     Writer(Writer&&) = default;
 
-    void init(adios2::ADIOS*, const std::string&, const std::string&);
+    void init(adios2::ADIOS*, const std::string&, const std::string&, bool);
 
     void setMode(adios2::Mode);
 
@@ -107,8 +109,8 @@ namespace out {
     void writeSpectrum(const array_t<real_t*>&, const std::string&);
     void writeSpectrumBins(const array_t<real_t*>&, const std::string&);
 
-    void beginWriting(std::size_t, long double);
-    void endWriting();
+    void beginWriting(WriteModeTags, std::size_t, long double);
+    void endWriting(WriteModeTags);
 
     /* getters -------------------------------------------------------------- */
     auto fname() const -> const std::string& {

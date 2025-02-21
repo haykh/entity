@@ -90,11 +90,11 @@
     # Boundary conditions for fields:
     #   @required
     #   @type: 1/2/3-size array of string tuples, each of size 1 or 2
-    #   @valid: "PERIODIC", "ABSORB", "ATMOSPHERE", "CUSTOM", "HORIZON"
-    #   @example: [["CUSTOM", "ABSORB"]] (for 2D spherical [[rmin, rmax]])
-    #   @note: When periodic in any of the directions, you should only set one value [..., ["PERIODIC"], ...]
-    #   @note: In spherical, bondaries in theta/phi are set automatically (only specify bc @ [rmin, rmax]) [["ATMOSPHERE", "ABSORB"]]
-    #   @note: In GR, the horizon boundary is set automatically (only specify bc @ rmax): [["ABSORB"]]
+    #   @valid: "PERIODIC", "MATCH", "FIXED", "ATMOSPHERE", "CUSTOM", "HORIZON"
+    #   @example: [["CUSTOM", "MATCH"]] (for 2D spherical [[rmin, rmax]])
+    #   @note: When periodic in any of the directions, you should only set one value: [..., ["PERIODIC"], ...]
+    #   @note: In spherical, bondaries in theta/phi are set automatically (only specify bc @ [rmin, rmax]): [["ATMOSPHERE", "MATCH"]]
+    #   @note: In GR, the horizon boundary is set automatically (only specify bc @ rmax): [["MATCH"]]
     fields = ""
     # Boundary conditions for fields:
     #   @required
@@ -105,9 +105,9 @@
     #   @note: In spherical, bondaries in theta/phi are set automatically (only specify bc @ [rmin, rmax]) [["ATMOSPHERE", "ABSORB"]]
     #   @note: In GR, the horizon boundary is set automatically (only specify bc @ rmax): [["ABSORB"]]
     particles = ""
-    
-    [grid.boundaries.absorb]
-      # Size of the absorption layer in physical (code) units:
+
+    [grid.boundaries.match]
+      # Size of the matching layer for fields in physical (code) units:
       #   @type: float
       #   @default: 1% of the domain size (in shortest dimension)
       #   @note: In spherical, this is the size of the layer in r from the outer wall
@@ -118,8 +118,16 @@
       #   @default: 1.0
       coeff = ""
 
+    [grid.boundaries.absorb]
+      # Size of the absorption layer for particles in physical (code) units:
+      #   @type: float
+      #   @default: 1% of the domain size (in shortest dimension)
+      #   @note: In spherical, this is the size of the layer in r from the outer wall
+      #   @note: In cartesian, this is the same for all dimensions where applicable
+      ds = ""
+
     [grid.boundaries.atmosphere]
-    # @required: if ATMOSPHERE is one of the boundaries
+      # @required: if ATMOSPHERE is one of the boundaries
       # Temperature of the atmosphere in units of m0 c^2
       #   @type: float
       temperature = ""
@@ -210,7 +218,7 @@
     #   @type: float: ~1
     #   @default: 1.0
     correction = ""
-    
+
     # @inferred:
     # - dt [= CFL * dx0]
     #     @brief: timestep duration
@@ -252,12 +260,11 @@
   #   @type: bool
   #   @default: false
   use_weights = ""
-  # Timesteps between particle re-sorting:
+  # Timesteps between particle re-sorting (removing dead particles):
   #   @type: unsigned int
   #   @default: 100
-  #   @note: When MPI is enable, particles are sorted every step.
-  #   @note: When `sort_interval` == 0, the sorting is disabled.
-  sort_interval = ""
+  #   @note: set to 0 to disable re-sorting
+  clear_interval = ""
 
   # @inferred:
   # - nspec
@@ -320,6 +327,10 @@
   #   @default: -1.0 (disabled)
   #   @note: When `interval_time` < 0, the output is controlled by `interval`, otherwise by `interval_time`
   interval_time = ""
+  # Whether to output each timestep into separate files:
+  #   @type: bool
+  #   @default: true
+  separate_files = ""
 
   [output.fields]
     # Toggle for the field output:

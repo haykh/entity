@@ -35,16 +35,17 @@ namespace checkpoint {
       reader.Get(field_var, array_h.data(), adios2::Mode::Sync);
       Kokkos::deep_copy(array, array_h);
     } else {
-      raise::Error(fmt::format("Field variable: %s not found", field.c_str()), HERE);
+      raise::Error(fmt::format("Field variable: %s not found", field.c_str()),
+                   HERE);
     }
   }
 
-  auto ReadParticleCount(adios2::IO&     io,
-                         adios2::Engine& reader,
-                         unsigned short  s,
-                         std::size_t     local_dom,
-                         std::size_t     ndomains)
-    -> std::pair<std::size_t, std::size_t> {
+  auto ReadParticleCount(
+    adios2::IO&     io,
+    adios2::Engine& reader,
+    unsigned short  s,
+    std::size_t     local_dom,
+    std::size_t     ndomains) -> std::pair<std::size_t, std::size_t> {
     logger::Checkpoint(fmt::format("Reading particle count for: %d", s + 1), HERE);
     auto npart_var = io.InquireVariable<std::size_t>(
       fmt::format("s%d_npart", s + 1));
@@ -97,7 +98,7 @@ namespace checkpoint {
       fmt::format("s%d_%s", s + 1, quantity.c_str()));
     if (var) {
       var.SetSelection(adios2::Box<adios2::Dims>({ offset }, { count }));
-      const auto slice   = std::pair<std::size_t, std::size_t> { 0, count };
+      const auto slice   = range_tuple_t(0, count);
       auto       array_h = Kokkos::create_mirror_view(array);
       reader.Get(var, Kokkos::subview(array_h, slice).data(), adios2::Mode::Sync);
       Kokkos::deep_copy(Kokkos::subview(array, slice),
@@ -106,6 +107,28 @@ namespace checkpoint {
       raise::Error(
         fmt::format("Variable: s%d_%s not found", s + 1, quantity.c_str()),
         HERE);
+    }
+  }
+
+  void ReadParticlePayloads(adios2::IO&        io,
+                            adios2::Engine&    reader,
+                            unsigned short     s,
+                            array_t<real_t**>& array,
+                            std::size_t        nplds,
+                            std::size_t        count,
+                            std::size_t        offset) {
+    logger::Checkpoint(fmt::format("Reading quantity: s%d_plds", s + 1), HERE);
+    auto var = io.InquireVariable<real_t>(fmt::format("s%d_plds", s + 1));
+    if (var) {
+      var.SetSelection(adios2::Box<adios2::Dims>({ offset, 0 }, { count, nplds }));
+      const auto slice   = range_tuple_t(0, count);
+      auto       array_h = Kokkos::create_mirror_view(array);
+      reader.Get(var,
+                 Kokkos::subview(array_h, slice, range_tuple_t(0, nplds)).data(),
+                 adios2::Mode::Sync);
+      Kokkos::deep_copy(array, array_h);
+    } else {
+      raise::Error(fmt::format("Variable: s%d_plds not found", s + 1), HERE);
     }
   }
 

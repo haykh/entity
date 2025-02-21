@@ -69,10 +69,18 @@ namespace checkpoint {
                               std::size_t,
                               const array_t<T*>&);
 
+    void saveParticlePayloads(const std::string&,
+                              std::size_t,
+                              std::size_t,
+                              std::size_t,
+                              std::size_t,
+                              const array_t<real_t**>&);
+
     void defineFieldVariables(const ntt::SimEngine&,
                               const std::vector<std::size_t>&,
                               const std::vector<std::size_t>&,
                               const std::vector<std::size_t>&);
+
     void defineParticleVariables(const ntt::Coord&,
                                  Dimension,
                                  std::size_t,

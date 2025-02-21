@@ -30,6 +30,7 @@ add_library(ntt_output ${SOURCES})
 set(libs ntt_global)
 add_dependencies(ntt_output ${libs})
 target_link_libraries(ntt_output PUBLIC ${libs})
+target_link_libraries(ntt_output PRIVATE stdc++fs)
 
 target_include_directories(
   ntt_output

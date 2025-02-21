@@ -86,7 +86,7 @@ namespace user {
 
     inline PGen() {}
 
-    auto FieldDriver(real_t time) const -> DriveFields<D> {
+    auto AtmFields(real_t time) const -> DriveFields<D> {
       return DriveFields<D> { time, Bsurf, Rstar, Omega };
     }
   };

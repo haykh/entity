@@ -385,7 +385,7 @@ namespace ntt {
 #if defined(MPI_ENABLED)
     auto dx_mins        = std::vector<real_t>(g_ndomains);
     dx_mins[g_mpi_rank] = dx_min;
-    MPI_Allgather(MPI_IN_PLACE,
+    MPI_Allgather(&dx_min,
                   1,
                   mpi::get_type<real_t>(),
                   dx_mins.data(),
@@ -398,33 +398,6 @@ namespace ntt {
                      HERE);
     }
 #endif
-  }
-
-  // Function to assign a unique ID to each particle
-  template <SimEngine::type S, class M>
-  void Metadomain<S, M>::SetParticleIDs(Domain<S, M>& domain){
-    for (auto& species : domain.species) {
-      auto &this_particleID = species.particleID;
-      auto &this_tag  = species.tag;
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      const auto offset_per_rank = static_cast<long>(1e9 * rank);
-      std::size_t current_particleID = 0;
-      Kokkos::View<std::size_t*> counter_view("current_particleID", 1);
-      Kokkos::deep_copy(counter_view, current_particleID);
-      
-      Kokkos::parallel_for(
-        "Set Particle IDs",
-        species.npart(),
-        Lambda(const std::size_t p){
-          if (this_tag(p) == ParticleTag::alive)
-          {
-          Kokkos::atomic_increment(&counter_view(0));
-          this_particleID(p) = offset_per_rank + static_cast<long>(counter_view(0));
-          }
-    });
-    }
-    return;
   }
 
   template struct Metadomain<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>;

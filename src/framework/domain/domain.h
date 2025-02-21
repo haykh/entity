@@ -65,7 +65,7 @@ namespace ntt {
     Mesh<M>                                 mesh;
     Fields<D, S>                            fields;
     std::vector<Particles<D, M::CoordType>> species;
-    random_number_pool_t random_pool { constant::RandomSeed };
+    random_number_pool_t                    random_pool;
 
     /**
      * @brief constructor for "empty" allocation of non-local domain placeholders
@@ -81,6 +81,7 @@ namespace ntt {
       : mesh { ncells, extent, metric_params }
       , fields {}
       , species {}
+      , random_pool { constant::RandomSeed }
       , m_index { index }
       , m_offset_ndomains { offset_ndomains }
       , m_offset_ncells { offset_ncells } {}
@@ -95,6 +96,7 @@ namespace ntt {
       : mesh { ncells, extent, metric_params }
       , fields { ncells }
       , species { species_params.begin(), species_params.end() }
+      , random_pool { constant::RandomSeed + static_cast<std::uint64_t>(index) }
       , m_index { index }
       , m_offset_ndomains { offset_ndomains }
       , m_offset_ncells { offset_ncells } {}
@@ -144,8 +146,7 @@ namespace ntt {
     }
 
     /* setters -------------------------------------------------------------- */
-    auto set_neighbor_idx(const dir::direction_t<D>& dir, unsigned int idx)
-      -> void {
+    auto set_neighbor_idx(const dir::direction_t<D>& dir, unsigned int idx) -> void {
       m_neighbor_idx[dir] = idx;
     }
 
@@ -163,8 +164,8 @@ namespace ntt {
   };
 
   template <SimEngine::type S, class M>
-  inline auto operator<<(std::ostream& os, const Domain<S, M>& domain)
-    -> std::ostream& {
+  inline auto operator<<(std::ostream&       os,
+                         const Domain<S, M>& domain) -> std::ostream& {
     os << "Domain #" << domain.index();
 #if defined(MPI_ENABLED)
     os << " [MPI rank: " << domain.mpi_rank() << "]";

@@ -105,8 +105,8 @@ namespace ntt {
                             color::RESET);
     }
 
-    auto bytes_to_human_readable(std::size_t bytes)
-      -> std::pair<long double, std::string> {
+    auto bytes_to_human_readable(
+      std::size_t bytes) -> std::pair<long double, std::string> {
       const std::vector<std::string> units { "B", "KB", "MB", "GB", "TB" };
       std::size_t                    unit_idx = 0;
       auto                           size     = static_cast<long double>(bytes);
@@ -415,13 +415,13 @@ namespace ntt {
     }
   }
 
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>;
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_2D>>;
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_3D>>;
-  template class Engine<SimEngine::SRPIC, metric::Spherical<Dim::_2D>>;
-  template class Engine<SimEngine::SRPIC, metric::QSpherical<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>>;
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>::print_report() const;
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_2D>>::print_report() const;
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_3D>>::print_report() const;
+  template void Engine<SimEngine::SRPIC, metric::Spherical<Dim::_2D>>::print_report() const;
+  template void Engine<SimEngine::SRPIC, metric::QSpherical<Dim::_2D>>::print_report() const;
+  template void Engine<SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>>::print_report() const;
+  template void Engine<SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>>::print_report() const;
+  template void Engine<SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>>::print_report() const;
 
 } // namespace ntt

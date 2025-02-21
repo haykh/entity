@@ -28,6 +28,8 @@ Our [detailed documentation](https://entity-toolkit.github.io/) includes everyth
 
 🍵 __Benjamin Crinquand__ {[@bcrinquand](https://github.com/bcrinquand): GRPIC, cubed-sphere}
 
+:radio: __Siddhant Solanki__ {[@sidruns30](https://github.com/sidruns30): framework}
+
 🤷 __Arno Vanthieghem__ {[@vanthieg](https://github.com/vanthieg): framework, PIC}
 
 😺 __Muni Zhou__ {[@munizhou](https://github.com/munizhou): PIC}

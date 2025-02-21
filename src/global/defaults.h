@@ -22,9 +22,9 @@ namespace ntt::defaults {
 
   const unsigned short current_filters = 0;
 
-  const std::string em_pusher     = "Boris";
-  const std::string ph_pusher     = "Photon";
-  const std::size_t sort_interval = 100;
+  const std::string em_pusher      = "Boris";
+  const std::string ph_pusher      = "Photon";
+  const std::size_t clear_interval = 100;
 
   namespace qsph {
     const real_t r0 = 0.0;
@@ -41,11 +41,15 @@ namespace ntt::defaults {
   } // namespace gr
 
   namespace bc {
-    namespace absorb {
+    namespace match {
       const real_t ds_frac = 0.01;
       const real_t coeff   = 1.0;
+    } // namespace match
+
+    namespace absorb {
+      const real_t ds_frac = 0.01;
     } // namespace absorb
-  }   // namespace bc
+  } // namespace bc
 
   namespace output {
     const std::string    format      = "hdf5";

@@ -1,21 +1,21 @@
 [simulation]
-  name = "shock"
-  engine = "srpic"
+  name    = "shock"
+  engine  = "srpic"
   runtime = 50.0
 
 [grid]
   resolution = [2048, 128]
-  extent = [[0.0, 10.0], [-0.3125, 0.3125]]
+  extent     = [[0.0, 10.0], [-0.3125, 0.3125]]
 
   [grid.metric]
     metric = "minkowski"
 
   [grid.boundaries]
-    fields = [["CONDUCTOR", "ABSORB"], ["PERIODIC"]]
+    fields = [["ABSORB", "FIXED"], ["PERIODIC"]]
     particles = [["REFLECT", "ABSORB"], ["PERIODIC"]]
-    
+
 [scales]
-  larmor0 = 1e-2
+  larmor0    = 1e-2
   skindepth0 = 1e-2
 
 [algorithms]
@@ -28,24 +28,27 @@
   ppc0 = 16.0
 
   [[particles.species]]
-    label = "e-"
-    mass = 1.0
-    charge = -1.0
+    label    = "e-"
+    mass     = 1.0
+    charge   = -1.0
     maxnpart = 1e8
 
   [[particles.species]]
-    label = "e+"
-    mass = 1.0
-    charge = 1.0
+    label    = "e+"
+    mass     = 1.0
+    charge   = 1.0
     maxnpart = 1e8
 
 [setup]
-  drift_ux = 0.1
+  drift_ux    = 0.1
   temperature = 1e-3
+  Bmag = 1.0
+  Btheta = 0.0
+  Bphi = 0.0
 
 [output]
   interval_time = 0.1
-  format = "hdf5"
-  
+  format        = "hdf5"
+
   [output.fields]
     quantities = ["N_1", "N_2", "E", "B", "T0i_1", "T0i_2", "J"]

@@ -3,6 +3,7 @@
 #include "global.h"
 
 #include <Kokkos_Core.hpp>
+#include <Kokkos_ScatterView.hpp>
 
 #include <iostream>
 #include <stdexcept>
@@ -44,8 +45,7 @@ auto main(int argc, char* argv[]) -> int {
     {
       // scatter arrays & ranges
       array_t<float*> a { "a", 100 };
-      scatter_array_t<float*> a_scatter = Kokkos::Experimental::create_scatter_view(
-        a);
+      auto            a_scatter = Kokkos::Experimental::create_scatter_view(a);
       Kokkos::parallel_for(
         // range_t<Dim::_1D>({ 0 }, { 100 }),
         CreateRangePolicy<Dim::_1D>({ 0 }, { 100 }),

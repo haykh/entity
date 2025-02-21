@@ -45,6 +45,14 @@ namespace checkpoint {
                         std::size_t,
                         std::size_t);
 
+  void ReadParticlePayloads(adios2::IO&,
+                            adios2::Engine&,
+                            unsigned short,
+                            array_t<real_t**>&,
+                            std::size_t,
+                            std::size_t,
+                            std::size_t);
+
 } // namespace checkpoint
 
 #endif // CHECKPOINT_READER_H

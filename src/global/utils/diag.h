@@ -34,9 +34,9 @@ namespace diag {
    * @param species_labels (vector of particle labels)
    * @param npart (per each species)
    * @param maxnpart (per each species)
-   * @param sorting_step (if true, particles were sorted)
-   * @param output_step (if true, output was written)
-   * @param checkpoint_step (if true, checkpoint was written)
+   * @param prtlclear (if true, dead particles were removed)
+   * @param output (if true, output was written)
+   * @param checkpoint (if true, checkpoint was written)
    * @param colorful_print (if true, print with colors)
    */
   void printDiagnostics(std::size_t,

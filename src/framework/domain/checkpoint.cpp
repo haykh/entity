@@ -242,13 +242,13 @@ namespace ntt {
           local_domain->species[s].weight);
 
         auto nplds = local_domain->species[s].npld();
-        for (auto p { 0u }; p < nplds; ++p) {
-          g_checkpoint_writer.saveParticleQuantity<real_t>(
-            fmt::format("s%d_pld%d", s + 1, p + 1),
-            glob_tot,
-            offset,
-            npart,
-            local_domain->species[s].pld[p]);
+        if (nplds > 0) {
+          g_checkpoint_writer.saveParticlePayloads(fmt::format("s%d_plds", s + 1),
+                                                   nplds,
+                                                   glob_tot,
+                                                   offset,
+                                                   npart,
+                                                   local_domain->species[s].pld);
         }
       }
     }
@@ -451,14 +451,16 @@ namespace ntt {
                                              domain.species[s].weight,
                                              loc_npart,
                                              offset_npart);
-        for (auto p { 0u }; p < domain.species[s].npld(); ++p) {
-          checkpoint::ReadParticleData<real_t>(io,
-                                               reader,
-                                               fmt::format("pld%d", p + 1),
-                                               s,
-                                               domain.species[s].pld[p],
-                                               loc_npart,
-                                               offset_npart);
+
+        const auto nplds = domain.species[s].npld();
+        if (nplds > 0) {
+          checkpoint::ReadParticlePayloads(io,
+                                           reader,
+                                           s,
+                                           domain.species[s].pld,
+                                           nplds,
+                                           loc_npart,
+                                           offset_npart);
         }
         domain.species[s].set_npart(loc_npart);
       } // species loop

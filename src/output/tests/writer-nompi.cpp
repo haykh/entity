@@ -70,7 +70,7 @@ auto main(int argc, char* argv[]) -> int {
     {
       // write
       auto writer = out::Writer();
-      writer.init(&adios, "hdf5", "test");
+      writer.init(&adios, "hdf5", "test", false);
       writer.defineMeshLayout({ nx1, nx2, nx3 },
                               { 0, 0, 0 },
                               { nx1, nx2, nx3 },
@@ -84,13 +84,13 @@ auto main(int argc, char* argv[]) -> int {
         field_names.push_back(writer.fieldWriters()[0].name(i));
         addresses.push_back(i);
       }
-      writer.beginWriting(10, 123.0);
+      writer.beginWriting(WriteMode::Fields, 10, 123.0);
       writer.writeField<Dim::_3D, 3>(field_names, field, addresses);
-      writer.endWriting();
+      writer.endWriting(WriteMode::Fields);
 
-      writer.beginWriting(20, 123.4);
+      writer.beginWriting(WriteMode::Fields, 20, 123.4);
       writer.writeField<Dim::_3D, 3>(field_names, field, addresses);
-      writer.endWriting();
+      writer.endWriting(WriteMode::Fields);
     }
 
     adios.FlushAll();

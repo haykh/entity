@@ -17,14 +17,18 @@
 #include "arch/directions.h"
 #include "arch/kokkos_aliases.h"
 #include "arch/mpi_aliases.h"
+#include "arch/mpi_tags.h"
 #include "utils/error.h"
 
 #include "framework/containers/particles.h"
+
+#include "kernels/comm.hpp"
 
 #include <Kokkos_Core.hpp>
 #include <mpi.h>
 // #include <hip/hip_runtime.h>
 
+#include <numeric>
 #include <vector>
 
 namespace comm {
@@ -284,50 +288,10 @@ namespace comm {
     }
   }
 
-  template <typename T>
-  void CommunicateParticleQuantity(array_t<T*>&         arr,
-                                   int                  send_rank,
-                                   int                  recv_rank,
-                                   const range_tuple_t& send_slice,
-                                   const range_tuple_t& recv_slice) {
-    const std::size_t send_count = send_slice.second - send_slice.first;
-    const std::size_t recv_count = recv_slice.second - recv_slice.first;
-    if ((send_rank >= 0) and (recv_rank >= 0) and (send_count > 0) and
-        (recv_count > 0)) {
-      MPI_Sendrecv(arr.data() + send_slice.first,
-                   send_count,
-                   mpi::get_type<T>(),
-                   send_rank,
-                   0,
-                   arr.data() + recv_slice.first,
-                   recv_count,
-                   mpi::get_type<T>(),
-                   recv_rank,
-                   0,
-                   MPI_COMM_WORLD,
-                   MPI_STATUS_IGNORE);
-    } else if ((send_rank >= 0) and (send_count > 0)) {
-      MPI_Send(arr.data() + send_slice.first,
-               send_count,
-               mpi::get_type<T>(),
-               send_rank,
-               0,
-               MPI_COMM_WORLD);
-    } else if ((recv_rank >= 0) and (recv_count > 0)) {
-      MPI_Recv(arr.data() + recv_slice.first,
-               recv_count,
-               mpi::get_type<T>(),
-               recv_rank,
-               0,
-               MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
-    }
-  }
-
-  void ParticleSendRecvCount(int                send_rank,
-                             int                recv_rank,
-                             const std::size_t& send_count,
-                             std::size_t&       recv_count) {
+  void ParticleSendRecvCount(int          send_rank,
+                             int          recv_rank,
+                             std::size_t  send_count,
+                             std::size_t& recv_count) {
     if ((send_rank >= 0) && (recv_rank >= 0)) {
       MPI_Sendrecv(&send_count,
                    1,
@@ -357,644 +321,234 @@ namespace comm {
   }
 
   template <Dimension D, Coord::type C>
-  auto CommunicateParticles(Particles<D, C>&     species,
-                            int                  send_rank,
-                            int                  recv_rank,
-                            const range_tuple_t& send_slice,
-                            std::size_t&         index_last) -> std::size_t {
-    if ((send_rank < 0) && (recv_rank < 0)) {
-      raise::Error("No send or recv in CommunicateParticles", HERE);
-    }
-    std::size_t recv_count { 0 };
-    ParticleSendRecvCount(send_rank,
-                          recv_rank,
-                          send_slice.second - send_slice.first,
-                          recv_count);
-    raise::FatalIf((index_last + recv_count) >= species.maxnpart(),
-                   "Too many particles to receive (cannot fit into maxptl)",
-                   HERE);
-    const auto recv_slice = range_tuple_t({ index_last, index_last + recv_count });
-    CommunicateParticleQuantity(species.i1, send_rank, recv_rank, send_slice, recv_slice);
-    CommunicateParticleQuantity(species.dx1, send_rank, recv_rank, send_slice, recv_slice);
-    CommunicateParticleQuantity(species.i1_prev,
-                                send_rank,
-                                recv_rank,
-                                send_slice,
-                                recv_slice);
-    CommunicateParticleQuantity(species.dx1_prev,
-                                send_rank,
-                                recv_rank,
-                                send_slice,
-                                recv_slice);
-    if constexpr (D == Dim::_2D || D == Dim::_3D) {
-      CommunicateParticleQuantity(species.i2, send_rank, recv_rank, send_slice, recv_slice);
-      CommunicateParticleQuantity(species.dx2,
-                                  send_rank,
-                                  recv_rank,
-                                  send_slice,
-                                  recv_slice);
-      CommunicateParticleQuantity(species.i2_prev,
-                                  send_rank,
-                                  recv_rank,
-                                  send_slice,
-                                  recv_slice);
-      CommunicateParticleQuantity(species.dx2_prev,
-                                  send_rank,
-                                  recv_rank,
-                                  send_slice,
-                                  recv_slice);
-    }
-    if constexpr (D == Dim::_3D) {
-      CommunicateParticleQuantity(species.i3, send_rank, recv_rank, send_slice, recv_slice);
-      CommunicateParticleQuantity(species.dx3,
-                                  send_rank,
-                                  recv_rank,
-                                  send_slice,
-                                  recv_slice);
-      CommunicateParticleQuantity(species.i3_prev,
-                                  send_rank,
-                                  recv_rank,
-                                  send_slice,
-                                  recv_slice);
-      CommunicateParticleQuantity(species.dx3_prev,
-                                  send_rank,
-                                  recv_rank,
-                                  send_slice,
-                                  recv_slice);
-    }
-    CommunicateParticleQuantity(species.ux1, send_rank, recv_rank, send_slice, recv_slice);
-    CommunicateParticleQuantity(species.ux2, send_rank, recv_rank, send_slice, recv_slice);
-    CommunicateParticleQuantity(species.ux3, send_rank, recv_rank, send_slice, recv_slice);
-    CommunicateParticleQuantity(species.weight,
-                                send_rank,
-                                recv_rank,
-                                send_slice,
-                                recv_slice);
-    if constexpr (D == Dim::_2D and C != Coord::Cart) {
-      CommunicateParticleQuantity(species.phi,
-                                  send_rank,
-                                  recv_rank,
-                                  send_slice,
-                                  recv_slice);
-    }
-    for (auto p { 0 }; p < species.npld(); ++p) {
-      CommunicateParticleQuantity(species.pld[p],
-                                  send_rank,
-                                  recv_rank,
-                                  send_slice,
-                                  recv_slice);
-    }
-    return recv_count;
-  }
+  void CommunicateParticles(Particles<D, C>&                species,
+                            const array_t<std::size_t*>&    outgoing_indices,
+                            const array_t<std::size_t*>&    tag_offsets,
+                            const std::vector<std::size_t>& npptag_vec,
+                            const std::vector<std::size_t>& npptag_recv_vec,
+                            const std::vector<int>&         send_ranks,
+                            const std::vector<int>&         recv_ranks,
+                            const dir::dirs_t<D>&           dirs_to_comm) {
+    // number of arrays of each type to send/recv
+    const unsigned short NREALS = 4 + static_cast<unsigned short>(
+                                        D == Dim::_2D and C != Coord::Cart);
+    const unsigned short NINTS   = 2 * static_cast<unsigned short>(D);
+    const unsigned short NPRTLDX = 2 * static_cast<unsigned short>(D);
+    const unsigned short NPLDS   = species.npld();
 
+    // buffers to store recv data
+    const auto       npart_alive = npptag_vec[ParticleTag::alive];
+    const auto       npart_dead  = npptag_vec[ParticleTag::dead];
+    const auto       npart_send  = outgoing_indices.extent(0) - npart_dead;
+    const auto       npart_recv  = std::accumulate(npptag_recv_vec.begin(),
+                                            npptag_recv_vec.end(),
+                                            static_cast<std::size_t>(0));
+    array_t<int*>    recv_buff_int { "recv_buff_int", npart_recv * NINTS };
+    array_t<real_t*> recv_buff_real { "recv_buff_real", npart_recv * NREALS };
+    array_t<prtldx_t*> recv_buff_prtldx { "recv_buff_prtldx", npart_recv * NPRTLDX };
+    array_t<real_t*> recv_buff_pld;
 
-  template <Dimension D, Coord::type C>
-  void CommunicateParticlesBuffer(Particles<D, C>&     species,
-                                  Kokkos::View<std::size_t*>  permute_vector,
-                                  Kokkos::View<std::size_t*>  allocation_vector,
-                                  Kokkos::View<std::size_t*>  tag_offset,
-                                  std::vector<std::size_t>    npart_per_tag_arr,
-                                  std::vector<std::size_t>    npart_per_tag_arr_recv,
-                                  std::vector<int>            send_ranks,
-                                  std::vector<int>            recv_ranks,
-				  const dir::dirs_t<D>&    legal_directions) {
-    // Pointers to the particle data arrays
-    auto &this_ux1 = species.ux1;
-    auto &this_ux2 = species.ux2;
-    auto &this_ux3 = species.ux3;
-    auto &this_weight = species.weight;
-    auto &this_phi = species.phi;
-    auto &this_i1 = species.i1;
-    auto &this_i1_prev = species.i1_prev;
-    auto &this_i2 = species.i2;
-    auto &this_i3 = species.i3;
-    auto &this_i2_prev = species.i2_prev;
-    auto &this_i3_prev = species.i3_prev;
-    auto &this_dx1 = species.dx1;
-    auto &this_dx1_prev = species.dx1_prev;
-    auto &this_dx2 = species.dx2;
-    auto &this_dx3 = species.dx3;
-    auto &this_dx2_prev = species.dx2_prev;
-    auto &this_dx3_prev = species.dx3_prev;
-    auto &this_tag = species.tag;
-    auto &this_particleID = species.particleID;
-
-    // Number of arrays of each type to send/recv
-    auto NREALS   = 4;
-    auto NINTS    = 2;
-    auto NFLOATS  = 2;
-    auto NLONGS   = 2;
-    if constexpr (D == Dim::_2D) {
-      if (C != Coord::Cart) {
-        NREALS  = 5;
-        NINTS   = 4;
-        NFLOATS = 4;
-        this_phi = species.phi;
-      } else {
-        NREALS  = 4;
-        NINTS   = 4;
-        NFLOATS = 4;
-      }
-    }
-    if constexpr (D == Dim::_3D) {
-      NREALS  = 4;
-      NINTS   = 6;
-      NFLOATS = 6;
+    if (NPLDS > 0) {
+      recv_buff_pld = array_t<real_t*> { "recv_buff_pld", npart_recv * NPLDS };
     }
 
-    // Now make buffers to store recevied data (don't need global send buffers)
-    const auto total_send = permute_vector.extent(0) - npart_per_tag_arr[ParticleTag::dead];
-    const auto total_recv = allocation_vector.extent(0);
-    const auto n_alive    = npart_per_tag_arr[ParticleTag::alive];
-    const auto n_dead     = npart_per_tag_arr[ParticleTag::dead];
-
-    // Debug test: print send and recv count
-    {
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      //printf("MPI rank: %d, Total send: %d, Total recv: %d \n", rank, total_send, total_recv);
-    }
-    /*
-        Brief on recv buffers: Each recv buffer contains all the received arrays of 
-        a given type. The different physical quantities are stored next to each other
-        to avoid cache misses. The array is structured as follows:
-        E.g.,
-        recv_buffer_int: | qty1  | qty2 | ... | qtyNINTS | qty1 | qty2 | ... | qtyNINTS | ...
-                         <-------particle to recv1------> <-------particle to recv2-------->
-                         <----------------------------------total_recv---------------------------->
-    */
-    Kokkos::View<int*>        recv_buffer_int("recv_buffer_int",      total_recv * NINTS);
-    Kokkos::View<real_t*>     recv_buffer_real("recv_buffer_real",    total_recv * NREALS);
-    Kokkos::View<prtldx_t*>   recv_buffer_prtldx("recv_buffer_prtldx",total_recv * NFLOATS);
-    Kokkos::View<long*>       recv_buffer_long("recv_buffer_long",    total_recv * NLONGS);
-    auto recv_buffer_int_h    = Kokkos::create_mirror_view(recv_buffer_int);
-    auto recv_buffer_real_h   = Kokkos::create_mirror_view(recv_buffer_real);
-    auto recv_buffer_prtldx_h = Kokkos::create_mirror_view(recv_buffer_prtldx);
-    auto recv_buffer_long_h   = Kokkos::create_mirror_view(recv_buffer_long);
-
-    auto iteration = 0;
+    auto iteration        = 0;
     auto current_received = 0;
-    for (const auto& direction : legal_directions) {
-      const auto send_rank    = send_ranks[iteration];
-      const auto recv_rank    = recv_ranks[iteration];
-      const auto tag_send     = mpi::PrtlSendTag<D>::dir2tag(direction);
-      const auto tag_recv     = mpi::PrtlSendTag<D>::dir2tag(-direction);
-      const auto send_count   = npart_per_tag_arr[tag_send];
-      const auto recv_count   = npart_per_tag_arr_recv[tag_recv];
-      {
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      }
+
+    for (const auto& direction : dirs_to_comm) {
+      const auto send_rank     = send_ranks[iteration];
+      const auto recv_rank     = recv_ranks[iteration];
+      const auto tag_send      = mpi::PrtlSendTag<D>::dir2tag(direction);
+      const auto tag_recv      = mpi::PrtlSendTag<D>::dir2tag(-direction);
+      const auto npart_send_in = npptag_vec[tag_send];
+      const auto npart_recv_in = npptag_recv_vec[tag_recv - 2];
       if (send_rank < 0 and recv_rank < 0) {
         continue;
       }
-      Kokkos::View<int*>      send_buffer_int("send_buffer_int",      send_count * NINTS);
-      Kokkos::View<real_t*>   send_buffer_real("send_buffer_real",    send_count * NREALS);
-      Kokkos::View<prtldx_t*> send_buffer_prtldx("send_buffer_prtldx",send_count * NFLOATS);
-      Kokkos::View<long*>     send_buffer_long("send_buffer_long",    send_count * NLONGS);
-      auto send_buffer_int_h = Kokkos::create_mirror_view(send_buffer_int);
-      auto send_buffer_real_h = Kokkos::create_mirror_view(send_buffer_real);
-      auto send_buffer_prtldx_h = Kokkos::create_mirror_view(send_buffer_prtldx);
-      auto send_buffer_long_h = Kokkos::create_mirror_view(send_buffer_long);
-
-      // Need different constexpr parallel fors for different dims
-      if constexpr(D == Dim::_1D) {
-        Kokkos::parallel_for(
-          "PopulateSendBuffer",
-          send_count,
-          Lambda(const std::size_t p){
-            const auto idx = permute_vector(tag_offset(tag_send) - n_alive + p);
-            send_buffer_int(NINTS * p + 0) = this_i1(idx);
-            send_buffer_int(NINTS * p + 1) = this_i1_prev(idx);
-            send_buffer_real(NREALS * p + 0) = this_ux1(idx);
-            send_buffer_real(NREALS * p + 1) = this_ux2(idx);
-            send_buffer_real(NREALS * p + 2) = this_ux3(idx);
-            send_buffer_real(NREALS * p + 3) = this_weight(idx);
-            send_buffer_prtldx(NFLOATS * p + 0) = this_dx1(idx);
-            send_buffer_prtldx(NFLOATS * p + 1) = this_dx1_prev(idx);
-            send_buffer_long(NLONGS * p + 0) = this_particleID(idx);
-            send_buffer_long(NLONGS * p + 1) = this_tag(idx);
-            this_tag(idx)  = ParticleTag::dead;
-          });
-      }
-      if constexpr(D == Dim::_2D && C == Coord::Cart) {
-        Kokkos::parallel_for(
-          "PopulateSendBuffer",
-          send_count,
-          Lambda(const std::size_t p){
-            const auto idx = permute_vector(tag_offset(tag_send) - n_alive + p);
-            send_buffer_int(NINTS * p + 0) = this_i1(idx);
-            send_buffer_int(NINTS * p + 1) = this_i1_prev(idx);
-            send_buffer_int(NINTS * p + 2) = this_i2(idx);
-            send_buffer_int(NINTS * p + 3) = this_i2_prev(idx);     
-            send_buffer_real(NREALS * p + 0) = this_ux1(idx);
-            send_buffer_real(NREALS * p + 1) = this_ux2(idx);
-            send_buffer_real(NREALS * p + 2) = this_ux3(idx);
-            send_buffer_real(NREALS * p + 3) = this_weight(idx);
-            send_buffer_prtldx(NFLOATS * p + 0) = this_dx1(idx);
-            send_buffer_prtldx(NFLOATS * p + 1) = this_dx1_prev(idx);
-            send_buffer_prtldx(NFLOATS * p + 2) = this_dx2(idx);
-            send_buffer_prtldx(NFLOATS * p + 3) = this_dx2_prev(idx);
-            send_buffer_long(NLONGS * p + 0) = this_particleID(idx);
-            send_buffer_long(NLONGS * p + 1) = this_tag(idx);
-            this_tag(idx)  = ParticleTag::dead;
-          });
-      }
-      if constexpr(D == Dim::_2D && C != Coord::Cart) {
-        Kokkos::parallel_for(
-          "PopulateSendBuffer",
-          send_count,
-          Lambda(const std::size_t p){
-            const auto idx = permute_vector(tag_offset(tag_send) - n_alive + p);
-            send_buffer_int(NINTS * p + 0) = this_i1(idx);
-            send_buffer_int(NINTS * p + 1) = this_i1_prev(idx);
-            send_buffer_int(NINTS * p + 2) = this_i2(idx);
-            send_buffer_int(NINTS * p + 3) = this_i2_prev(idx);     
-            send_buffer_real(NREALS * p + 0) = this_ux1(idx);
-            send_buffer_real(NREALS * p + 1) = this_ux2(idx);
-            send_buffer_real(NREALS * p + 2) = this_ux3(idx);
-            send_buffer_real(NREALS * p + 3) = this_weight(idx);
-            send_buffer_real(NREALS * p + 4) = this_phi(idx);
-            send_buffer_prtldx(NFLOATS * p + 0) = this_dx1(idx);
-            send_buffer_prtldx(NFLOATS * p + 1) = this_dx1_prev(idx);
-            send_buffer_prtldx(NFLOATS * p + 2) = this_dx2(idx);
-            send_buffer_prtldx(NFLOATS * p + 3) = this_dx2_prev(idx);
-            send_buffer_long(NLONGS * p + 0) = this_particleID(idx);
-            send_buffer_long(NLONGS * p + 1) = this_tag(idx);
-            this_tag(idx)  = ParticleTag::dead;
-          });
-      }
-      if constexpr(D == Dim::_3D) {
-        Kokkos::parallel_for(
-          "PopulateSendBuffer",
-          send_count,
-          Lambda(const std::size_t p){
-            const auto idx = permute_vector(tag_offset(tag_send) - n_alive + p);
-            send_buffer_int(NINTS * p + 0) = this_i1(idx);
-            send_buffer_int(NINTS * p + 1) = this_i1_prev(idx);
-            send_buffer_int(NINTS * p + 2) = this_i2(idx);
-            send_buffer_int(NINTS * p + 3) = this_i2_prev(idx);
-            send_buffer_int(NINTS * p + 4) = this_i3(idx);
-            send_buffer_int(NINTS * p + 5) = this_i3_prev(idx);
-            send_buffer_real(NREALS * p + 0) = this_ux1(idx);
-            send_buffer_real(NREALS * p + 1) = this_ux2(idx);
-            send_buffer_real(NREALS * p + 2) = this_ux3(idx);
-            send_buffer_real(NREALS * p + 3) = this_weight(idx);
-            send_buffer_prtldx(NFLOATS * p + 0) = this_dx1(idx);
-            send_buffer_prtldx(NFLOATS * p + 1) = this_dx1_prev(idx);
-            send_buffer_prtldx(NFLOATS * p + 2) = this_dx2(idx);
-            send_buffer_prtldx(NFLOATS * p + 3) = this_dx2_prev(idx);
-            send_buffer_prtldx(NFLOATS * p + 4) = this_dx3(idx);
-            send_buffer_prtldx(NFLOATS * p + 5) = this_dx3_prev(idx);
-            send_buffer_long(NLONGS * p + 0) = this_particleID(idx);
-            send_buffer_long(NLONGS * p + 1) = this_tag(idx);
-            this_tag(idx)  = ParticleTag::dead;
-          });
+      array_t<int*> send_buff_int { "send_buff_int", npart_send_in * NINTS };
+      array_t<real_t*> send_buff_real { "send_buff_real", npart_send_in * NREALS };
+      array_t<prtldx_t*> send_buff_prtldx { "send_buff_prtldx",
+                                            npart_send_in * NPRTLDX };
+      array_t<real_t*>   send_buff_pld;
+      if (NPLDS > 0) {
+        send_buff_pld = array_t<real_t*> { "send_buff_pld", npart_send_in * NPLDS };
       }
 
-      auto tag_offset_h = Kokkos::create_mirror_view(tag_offset);
-      Kokkos::deep_copy(tag_offset_h, tag_offset);
-      /*
-          Brief on receive offset:
-          The receive buffer looks like this
-          <----------------------------------->
-          |NINT|NINT|NINT|NINT|NINT|NINT|NINT|NINT|...xnrecv
-          <--------><--------><--------><-------->
-            recv1      recv2      recv3     recv4
-                    |________|
-                    ^        ^
-                  offset   offset + nrecv
-      */
-      const auto receive_offset_int     = current_received * NINTS;
-      const auto receive_offset_real    = current_received * NREALS;
-      const auto receive_offset_prtldx  = current_received * NFLOATS;
-      const auto receive_offset_long    = current_received * NLONGS;
-      // Comms
-      // Make host arrays for send and recv buffers
-      Kokkos::deep_copy(send_buffer_int_h, send_buffer_int);
-      Kokkos::deep_copy(send_buffer_real_h, send_buffer_real);
-      Kokkos::deep_copy(send_buffer_prtldx_h, send_buffer_prtldx);
-      Kokkos::deep_copy(send_buffer_long_h, send_buffer_long);
+      auto tag_offsets_h = Kokkos::create_mirror_view(tag_offsets);
+      Kokkos::deep_copy(tag_offsets_h, tag_offsets);
 
-      if ((send_rank >= 0) and (recv_rank >= 0) and (send_count > 0) and
-      (recv_count > 0)) {
-      // Debug: Print the rank and type of mpi operation performed
-      {
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      //printf("MPI rank: %d, Performing sendrecv operation, direction %d \n", rank, direction);
+      std::size_t idx_offset = npart_dead;
+      if (tag_send > 2) {
+        idx_offset += tag_offsets_h(tag_send - 3);
       }
-      MPI_Sendrecv(send_buffer_int.data(),
-                   send_count * NINTS,
-                   mpi::get_type<int>(),
+      // clang-format off
+      Kokkos::parallel_for(
+        "PopulatePrtlSendBuffer",
+        npart_send_in,
+        kernel::comm::PopulatePrtlSendBuffer_kernel<D, C>(
+          send_buff_int, send_buff_real, send_buff_prtldx, send_buff_pld,
+          NINTS, NREALS, NPRTLDX, NPLDS, idx_offset,
+          species.i1, species.i1_prev, species.dx1, species.dx1_prev,
+          species.i2, species.i2_prev, species.dx2, species.dx2_prev,
+          species.i3, species.i3_prev, species.dx3, species.dx3_prev,
+          species.ux1, species.ux2, species.ux3, 
+          species.weight, species.phi, species.pld, species.tag,
+          outgoing_indices)
+      );
+      // clang-format on
+
+      const auto recv_offset_int    = current_received * NINTS;
+      const auto recv_offset_real   = current_received * NREALS;
+      const auto recv_offset_prtldx = current_received * NPRTLDX;
+      const auto recv_offset_pld    = current_received * NPLDS;
+
+      if ((send_rank >= 0) and (recv_rank >= 0) and (npart_send_in > 0) and
+          (npart_recv_in > 0)) {
+        raise::ErrorIf(recv_offset_int + npart_recv_in * NINTS >
+                         recv_buff_int.extent(0),
+                       "incorrect # of recv particles",
+                       HERE);
+        MPI_Sendrecv(send_buff_int.data(),
+                     npart_send_in * NINTS,
+                     mpi::get_type<int>(),
+                     send_rank,
+                     0,
+                     recv_buff_int.data() + recv_offset_int,
+                     npart_recv_in * NINTS,
+                     mpi::get_type<int>(),
+                     recv_rank,
+                     0,
+                     MPI_COMM_WORLD,
+                     MPI_STATUS_IGNORE);
+        MPI_Sendrecv(send_buff_real.data(),
+                     npart_send_in * NREALS,
+                     mpi::get_type<real_t>(),
+                     send_rank,
+                     0,
+                     recv_buff_real.data() + recv_offset_real,
+                     npart_recv_in * NREALS,
+                     mpi::get_type<real_t>(),
+                     recv_rank,
+                     0,
+                     MPI_COMM_WORLD,
+                     MPI_STATUS_IGNORE);
+        MPI_Sendrecv(send_buff_prtldx.data(),
+                     npart_send_in * NPRTLDX,
+                     mpi::get_type<prtldx_t>(),
+                     send_rank,
+                     0,
+                     recv_buff_prtldx.data() + recv_offset_prtldx,
+                     npart_recv_in * NPRTLDX,
+                     mpi::get_type<prtldx_t>(),
+                     recv_rank,
+                     0,
+                     MPI_COMM_WORLD,
+                     MPI_STATUS_IGNORE);
+        if (NPLDS > 0) {
+          MPI_Sendrecv(send_buff_pld.data(),
+                       npart_send_in * NPLDS,
+                       mpi::get_type<real_t>(),
+                       send_rank,
+                       0,
+                       recv_buff_pld.data() + recv_offset_pld,
+                       npart_recv_in * NPLDS,
+                       mpi::get_type<real_t>(),
+                       recv_rank,
+                       0,
+                       MPI_COMM_WORLD,
+                       MPI_STATUS_IGNORE);
+        }
+      } else if ((send_rank >= 0) and (npart_send_in > 0)) {
+        MPI_Send(send_buff_int.data(),
+                 npart_send_in * NINTS,
+                 mpi::get_type<int>(),
+                 send_rank,
+                 0,
+                 MPI_COMM_WORLD);
+        MPI_Send(send_buff_real.data(),
+                 npart_send_in * NREALS,
+                 mpi::get_type<real_t>(),
+                 send_rank,
+                 0,
+                 MPI_COMM_WORLD);
+        MPI_Send(send_buff_prtldx.data(),
+                 npart_send_in * NPRTLDX,
+                 mpi::get_type<prtldx_t>(),
+                 send_rank,
+                 0,
+                 MPI_COMM_WORLD);
+        if (NPLDS > 0) {
+          MPI_Send(send_buff_pld.data(),
+                   npart_send_in * NPLDS,
+                   mpi::get_type<real_t>(),
                    send_rank,
                    0,
-                   recv_buffer_int.data() + receive_offset_int,
-                   recv_count*NINTS,
-                   mpi::get_type<int>(),
+                   MPI_COMM_WORLD);
+        }
+      } else if ((recv_rank >= 0) and (npart_recv_in > 0)) {
+        raise::ErrorIf(recv_offset_int + npart_recv_in * NINTS >
+                         recv_buff_int.extent(0),
+                       "incorrect # of recv particles",
+                       HERE);
+        MPI_Recv(recv_buff_int.data() + recv_offset_int,
+                 npart_recv_in * NINTS,
+                 mpi::get_type<int>(),
+                 recv_rank,
+                 0,
+                 MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+        MPI_Recv(recv_buff_real.data() + recv_offset_real,
+                 npart_recv_in * NREALS,
+                 mpi::get_type<real_t>(),
+                 recv_rank,
+                 0,
+                 MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+        MPI_Recv(recv_buff_prtldx.data() + recv_offset_prtldx,
+                 npart_recv_in * NPRTLDX,
+                 mpi::get_type<prtldx_t>(),
+                 recv_rank,
+                 0,
+                 MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+        if (NPLDS > 0) {
+          MPI_Recv(recv_buff_pld.data() + recv_offset_pld,
+                   npart_recv_in * NPLDS,
+                   mpi::get_type<real_t>(),
                    recv_rank,
                    0,
                    MPI_COMM_WORLD,
                    MPI_STATUS_IGNORE);
-      MPI_Sendrecv(send_buffer_real.data(),
-                    send_count * NREALS,
-                    mpi::get_type<real_t>(),
-                    send_rank,
-                    0,
-                    recv_buffer_real.data() + receive_offset_real,
-                    recv_count*NREALS,
-                    mpi::get_type<real_t>(),
-                    recv_rank,
-                    0,
-                    MPI_COMM_WORLD,
-                    MPI_STATUS_IGNORE);
-      MPI_Sendrecv(send_buffer_prtldx.data(),
-                    send_count * NFLOATS,
-                    mpi::get_type<prtldx_t>(),
-                    send_rank,
-                    0,
-                    recv_buffer_prtldx.data() + receive_offset_prtldx,
-                    recv_count*NFLOATS,
-                    mpi::get_type<prtldx_t>(),
-                    recv_rank,
-                    0,
-                    MPI_COMM_WORLD,
-                    MPI_STATUS_IGNORE);
-      MPI_Sendrecv(send_buffer_long.data(),
-                    send_count * NLONGS,
-                    mpi::get_type<long>(),
-                    send_rank,
-                    0,
-                    recv_buffer_long.data() + receive_offset_long,
-                    recv_count*NLONGS,
-                    mpi::get_type<long>(),
-                    recv_rank,
-                    0,
-                    MPI_COMM_WORLD,
-                    MPI_STATUS_IGNORE);
-    } else if ((send_rank >= 0) and (send_count > 0)) {
-      // Debug: Print the rank and type of mpi operation performed
-      {      
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        //printf("MPI rank: %d, Performing send operation, direction %d \n", rank, direction);
-      }
-      MPI_Send(send_buffer_int.data(),
-               send_count * NINTS,
-               mpi::get_type<int>(),
-               send_rank,
-               0,
-               MPI_COMM_WORLD);
-      MPI_Send(send_buffer_real.data(),
-                send_count * NREALS,
-                mpi::get_type<real_t>(),
-                send_rank,
-                0,
-                MPI_COMM_WORLD);
-      MPI_Send(send_buffer_prtldx.data(),
-                send_count * NFLOATS,
-                mpi::get_type<prtldx_t>(),
-                send_rank,
-                0,
-                MPI_COMM_WORLD);
-      MPI_Send(send_buffer_long.data(),
-                send_count * NLONGS,
-                mpi::get_type<long>(),
-                send_rank,
-                0,
-                MPI_COMM_WORLD);
-      } else if ((recv_rank >= 0) and (recv_count > 0)) {
-      // Debug: Print the rank and type of mpi operation performed
-      {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        //printf("MPI rank: %d, Performing recv operation, direction %d \n", rank, direction);
-      }
-      MPI_Recv(recv_buffer_int.data() + receive_offset_int,
-               recv_count * NINTS,
-               mpi::get_type<int>(),
-               recv_rank,
-               0,
-               MPI_COMM_WORLD,
-               MPI_STATUS_IGNORE);
-      MPI_Recv(recv_buffer_real.data() + receive_offset_real,
-                recv_count * NREALS,
-                mpi::get_type<real_t>(),
-                recv_rank,
-                0,
-                MPI_COMM_WORLD,
-                MPI_STATUS_IGNORE);
-      MPI_Recv(recv_buffer_prtldx.data() + receive_offset_prtldx,
-                recv_count * NFLOATS,
-                mpi::get_type<prtldx_t>(),
-                recv_rank,
-                0,
-                MPI_COMM_WORLD,
-                MPI_STATUS_IGNORE);
-      MPI_Recv(recv_buffer_long.data() + receive_offset_long,
-                recv_count * NLONGS,
-                mpi::get_type<long>(),
-                recv_rank,
-                0,
-                MPI_COMM_WORLD,
-                MPI_STATUS_IGNORE);
-    }
-    current_received += recv_count;
-    iteration++;
-
-    // Debug test: Print recv buffer before and after
-    /*
-    {
-      int total_ranks;
-      MPI_Comm_size(MPI_COMM_WORLD, &total_ranks);
-      for (int allranks=0; allranks<total_ranks; allranks++)
-      {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (rank == allranks && species.label() == "e+_b" && total_send != total_recv) 
-        {
-          // Print sent and received particles
-          std::cout << "Species: " << species.label() << std::endl;
-          //std::cout << "send rank: " << send_rank << "  recv rank: " << recv_rank << std::endl;
-          // Print the tags of the dead particles
-
-          
-          for (int i=0; i<send_count; i++)
-          {
-            auto position_y = send_buffer_int_h(i*NINTS + 2);
-            auto dx_y = send_buffer_prtldx_h(i*NFLOATS + 2);
-            auto velocity_y = send_buffer_real_h(i*NREALS + 1);
-            auto particle_ID = send_buffer_long_h(i*NLONGS + 0);
-            auto particle_tag = send_buffer_long_h(i*NLONGS + 1);
-            printf("MPI rank: %d,  Send ID %ld, tag %ld, pos i2 %d, dx: %f and u2 %f \n", rank,
-            particle_ID, particle_tag, position_y, dx_y, velocity_y);
-          }
-          auto allocation_vector_h = Kokkos::create_mirror_view(allocation_vector);
-          Kokkos::deep_copy(allocation_vector_h, allocation_vector);
-
-          for (int i=0; i<recv_count; i++)
-          {
-            auto position_y = recv_buffer_int_h(receive_offset_int + i*NINTS + 2);
-            auto velocity_y = recv_buffer_real_h(receive_offset_real + i*NREALS + 1);
-            auto dx_y = recv_buffer_prtldx_h(receive_offset_prtldx + i*NFLOATS + 2);
-            auto particle_ID = recv_buffer_long_h(receive_offset_long + i*NLONGS + 0);
-            auto particle_tag = recv_buffer_long_h(receive_offset_long + i*NLONGS + 1);
-            printf("MPI rank: %d,  Recv ID %ld, tag %ld, pos i2 %d, dx: %f  and u2 %f ", rank,
-            particle_ID, particle_tag, position_y, dx_y, velocity_y);
-            // Print where this particle gets allocated to
-            auto idx = current_received + i - recv_count;
-            std::cout << "\n current recieved " << current_received;
-            std::cout << "\n current index " << idx;
-            std::cout << "\n  allocated to position " << allocation_vector_h(idx) << std::endl;
-          }
-          printf("***** \n");
         }
       }
-    }
-    */
-   
-    } // end over direction loop
-    /*Kokkos::deep_copy(recv_buffer_int, recv_buffer_int_h);
-    Kokkos::deep_copy(recv_buffer_real, recv_buffer_real_h);
-    Kokkos::deep_copy(recv_buffer_prtldx, recv_buffer_prtldx_h);*/
-    if constexpr (D == Dim::_1D)
-    {
-      Kokkos::parallel_for(
-      "PopulateFromRecvBuffer",
-      total_recv,
-      Lambda(const std::size_t p){
-        auto idx = allocation_vector(p);
-        this_tag(idx)       = ParticleTag::alive;
-        this_i1(idx)        = recv_buffer_int(NINTS * p + 0);
-        this_i1_prev(idx)   = recv_buffer_int(NINTS * p + 1);
-        this_ux1(idx)       = recv_buffer_real(NREALS * p + 0);
-        this_ux2(idx)       = recv_buffer_real(NREALS * p + 1);
-        this_ux3(idx)       = recv_buffer_real(NREALS * p + 2);
-        this_weight(idx)    = recv_buffer_real(NREALS * p + 3);
-        this_dx1(idx)       = recv_buffer_prtldx(NFLOATS * p + 0);
-        this_dx1_prev(idx)  = recv_buffer_prtldx(NFLOATS * p + 1);
-        this_particleID(idx) = recv_buffer_long(NLONGS * p + 0);
-    });
-    }
+      current_received += npart_recv_in;
+      iteration++;
 
-    if constexpr (D == Dim::_2D && C == Coord::Cart)
-    {
+    } // end direction loop
+
+    // clang-format off
     Kokkos::parallel_for(
-    "PopulateFromRecvBuffer",
-    total_recv,
-    Lambda(const std::size_t p){
-      auto idx = allocation_vector(p);
-      this_tag(idx)       = ParticleTag::alive;
-      this_i1(idx)        = recv_buffer_int(NINTS * p + 0);
-      this_i1_prev(idx)   = recv_buffer_int(NINTS * p + 1);
-      this_i2(idx)        = recv_buffer_int(NINTS * p + 2);
-      this_i2_prev(idx)   = recv_buffer_int(NINTS * p + 3);
-      this_ux1(idx)       = recv_buffer_real(NREALS * p + 0);
-      this_ux2(idx)       = recv_buffer_real(NREALS * p + 1);
-      this_ux3(idx)       = recv_buffer_real(NREALS * p + 2);
-      this_weight(idx)    = recv_buffer_real(NREALS * p + 3);
-      this_dx1(idx)       = recv_buffer_prtldx(NFLOATS * p + 0);
-      this_dx1_prev(idx)  = recv_buffer_prtldx(NFLOATS * p + 1);
-      this_dx2(idx)       = recv_buffer_prtldx(NFLOATS * p + 2);
-      this_dx2_prev(idx)  = recv_buffer_prtldx(NFLOATS * p + 3);
-      this_particleID(idx) = recv_buffer_long(NLONGS * p + 0);
-    });
-    }
-
-    if constexpr (D == Dim::_2D && C != Coord::Cart)
-    {
-      Kokkos::parallel_for(
       "PopulateFromRecvBuffer",
-      total_recv,
-      Lambda(const std::size_t p){
-        auto idx = allocation_vector(p);
-        this_tag(idx)       = ParticleTag::alive;
-        this_i1(idx)        = recv_buffer_int(NINTS * p + 0);
-        this_i1_prev(idx)   = recv_buffer_int(NINTS * p + 1);
-        this_i2(idx)        = recv_buffer_int(NINTS * p + 2);
-        this_i2_prev(idx)   = recv_buffer_int(NINTS * p + 3);
-        this_ux1(idx)       = recv_buffer_real(NREALS * p + 0);
-        this_ux2(idx)       = recv_buffer_real(NREALS * p + 1);
-        this_ux3(idx)       = recv_buffer_real(NREALS * p + 2);
-        this_weight(idx)    = recv_buffer_real(NREALS * p + 3);
-        this_phi(idx)       = recv_buffer_real(NREALS * p + 4);
-        this_dx1(idx)       = recv_buffer_prtldx(NFLOATS * p + 0);
-        this_dx1_prev(idx)  = recv_buffer_prtldx(NFLOATS * p + 1);
-        this_dx2(idx)       = recv_buffer_prtldx(NFLOATS * p + 2);
-        this_dx2_prev(idx)  = recv_buffer_prtldx(NFLOATS * p + 3);
-        this_particleID(idx)     = recv_buffer_long(NLONGS * p + 0);
-    });
-    }
+      npart_recv,
+      kernel::comm::ExtractReceivedPrtls_kernel<D, C>(
+            recv_buff_int, recv_buff_real, recv_buff_prtldx, recv_buff_pld,
+            NINTS, NREALS, NPRTLDX, NPLDS,
+            species.npart(),
+            species.i1, species.i1_prev, species.dx1, species.dx1_prev,
+            species.i2, species.i2_prev, species.dx2, species.dx2_prev,
+            species.i3, species.i3_prev, species.dx3, species.dx3_prev,
+            species.ux1, species.ux2, species.ux3,
+            species.weight, species.phi, species.pld, species.tag,
+            outgoing_indices)
+    );
+    // clang-format on
 
-    if constexpr (D == Dim::_3D)
-    {
-      Kokkos::parallel_for(
-      "PopulateFromRecvBuffer",
-      total_recv,
-      Lambda(const std::size_t p){
-        auto idx = allocation_vector(p);
-        this_tag(idx)       = ParticleTag::alive;
-        this_i1(idx)        = recv_buffer_int(NINTS * p + 0);
-        this_i1_prev(idx)   = recv_buffer_int(NINTS * p + 1);
-        this_i2(idx)        = recv_buffer_int(NINTS * p + 2);
-        this_i2_prev(idx)   = recv_buffer_int(NINTS * p + 3);
-        this_i3(idx)        = recv_buffer_int(NINTS * p + 4);
-        this_i3_prev(idx)   = recv_buffer_int(NINTS * p + 5);
-        this_ux1(idx)       = recv_buffer_real(NREALS * p + 0);
-        this_ux2(idx)       = recv_buffer_real(NREALS * p + 1);
-        this_ux3(idx)       = recv_buffer_real(NREALS * p + 2);
-        this_weight(idx)    = recv_buffer_real(NREALS * p + 3);
-        this_dx1(idx)       = recv_buffer_prtldx(NFLOATS * p + 0);
-        this_dx1_prev(idx)  = recv_buffer_prtldx(NFLOATS * p + 1);
-        this_dx2(idx)       = recv_buffer_prtldx(NFLOATS * p + 2);
-        this_dx2_prev(idx)  = recv_buffer_prtldx(NFLOATS * p + 3);
-        this_dx3(idx)       = recv_buffer_prtldx(NFLOATS * p + 4);
-        this_dx3_prev(idx)  = recv_buffer_prtldx(NFLOATS * p + 5);
-        this_particleID(idx)     = recv_buffer_long(NLONGS * p + 0);
-    });
+    const auto npart       = species.npart();
+    const auto npart_holes = outgoing_indices.extent(0);
+    if (npart_recv > npart_holes) {
+      species.set_npart(npart + npart_recv - npart_holes);
     }
-    species.set_npart(species.npart() + std::max(permute_vector.extent(0), 
-                      allocation_vector.extent(0)) - permute_vector.extent(0));
-    /*
-    {
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      // Print the total number of particles after each pass
-      int species_npart = species.npart();
-      int global_species_npart = 0;
-      // Reduce all local sums into global_sum on rank 0
-      MPI_Reduce(&species_npart, &global_species_npart, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-      int total_ranks;
-      MPI_Comm_size(MPI_COMM_WORLD, &total_ranks);
-      for (int allranks=0; allranks<total_ranks; allranks++)
-      {
-        MPI_Barrier(MPI_COMM_WORLD);
-        // Only the root rank (rank 0) will print the global sum
-
-        if (rank == allranks && species.label() == "e+_b") {
-          printf("rank %d count: %d \n", rank, species_npart);
-          std::cout << "Total" << species.label() << "count : " << global_species_npart << std::endl;
-          auto [npart_per_tag_arr_new,
-          tag_offset_new]       = species.npart_per_tag();
-          for (int i=0; i<species.ntags(); i++)
-          {
-            std::cout << "Tag: " << i << " count after recv: " << npart_per_tag_arr_new[i] << std::endl;
-          }
-          // Copy the tag array to host
-          auto tag_h = Kokkos::create_mirror_view(species.tag);
-          Kokkos::deep_copy(tag_h, species.tag);
-          std::cout << "Tag locs after send" << std::endl;
-          for (std::size_t i { 0 }; i < species.npart(); i++) {
-            if (tag_h(i) != ParticleTag::alive)
-              std::cout <<" Tag: " << tag_h(i) << " loc: "<< i << std::endl;
-          }
-        }
-      }
-    }
-    */
-    return;
-}
+  }
 
 } // namespace comm
 

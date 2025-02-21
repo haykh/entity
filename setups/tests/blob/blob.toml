@@ -1,32 +1,25 @@
 [simulation]
-  name = "blob-1x1x2"
-  engine = "srpic"
-  runtime = 5.0
+  name    = "blob"
+  engine  = "srpic"
+  runtime = 100.0
 
   [simulation.domain]
-    decomposition = [1, 1, 2]
+    decomposition = [2, 1, 1]
 
 [grid]
-  resolution = [128, 192, 64]
-  # extent = [[1.0, 10.0]]
-  extent = [[-2.0, 2.0], [-3.0, 3.0], [-1.0, 1.0]]
+  resolution = [1024, 1024]
+  extent     = [[-10.0, 10.0], [-10.0, 10.0]]
 
   [grid.metric]
-    # metric = "qspherical"
     metric = "minkowski"
 
   [grid.boundaries]
-    # fields = [["ATMOSPHERE", "ABSORB"]]
-    # particles = [["ATMOSPHERE", "ABSORB"]]
-    fields = [["PERIODIC"], ["PERIODIC"], ["PERIODIC"]]
-    particles = [["PERIODIC"], ["PERIODIC"], ["PERIODIC"]]
-    
-    # [grid.boundaries.absorb]
-    #   ds = 1.0
-    
+    fields    = [["PERIODIC"], ["PERIODIC"]]
+    particles = [["PERIODIC"], ["PERIODIC"]]
+
 [scales]
-  larmor0 = 2e-5
-  skindepth0 = 0.01
+  larmor0    = 1.0
+  skindepth0 = 1.0
 
 [algorithms]
   current_filters = 4
@@ -35,32 +28,39 @@
     CFL = 0.5
 
 [particles]
-  ppc0 = 20.0
-  # use_weights = true
+  ppc0 = 16.0
 
   [[particles.species]]
-  label = "e-"
-  mass = 1.0
-  charge = -1.0
-  maxnpart = 1e7
-  pusher = "Boris"
+    label    = "e-_p"
+    mass     = 1.0
+    charge   = -1.0
+    maxnpart = 1e7
 
   [[particles.species]]
-  label = "e+"
-  mass = 1.0
-  charge = 1.0
-  maxnpart = 1e7
-  pusher = "Boris"
+    label    = "e+_p"
+    mass     = 1.0
+    charge   = 1.0
+    maxnpart = 1e7
 
 [setup]
-  xi_min = [0.55, 1.85, -0.25]
-  xi_max = [0.65, 2.3, -0.1]
-  v1     = [0.25, -0.55, 0.0]
-  v2     = [-0.75, -0.15, 0.0]
-  
+  temp_1 = 1e-4
+  x1c    = -5.0
+  x2c    = 0.0
+  v_max  = 50.0
+  dr     = 1.0
+
 [output]
-  format = "hdf5"
-  interval_time = 0.02
+  format        = "hdf5"
+  interval_time = 1.0
 
   [output.fields]
-    quantities = ["Nppc_1", "Nppc_2", "E", "B", "J"]
+    quantities = ["N_1", "N_2", "B", "E"]
+
+  [output.particles]
+    enable = false
+
+  [output.spectra]
+    enable = false
+
+[diagnostics]
+  colored_stdout = false

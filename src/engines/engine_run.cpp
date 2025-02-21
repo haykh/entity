@@ -26,8 +26,8 @@ namespace ntt {
          "CurrentFiltering", "CurrentDeposit",
          "ParticlePusher", "FieldBoundaries",
          "ParticleBoundaries", "Communications",
-         "Injector", "Sorting",
-         "Custom", "Output",
+         "Injector", "Custom",
+         "PrtlClear", "Output",
          "Checkpoint" },
         []() {
           Kokkos::fence();
@@ -37,9 +37,9 @@ namespace ntt {
       const auto diag_interval = m_params.get<std::size_t>(
         "diagnostics.interval");
 
-      auto       time_history  = pbar::DurationHistory { 1000 };
-      const auto sort_interval = m_params.template get<std::size_t>(
-        "particles.sort_interval");
+      auto       time_history   = pbar::DurationHistory { 1000 };
+      const auto clear_interval = m_params.template get<std::size_t>(
+        "particles.clear_interval");
 
       // main algorithm loop
       while (step < max_steps) {
@@ -56,7 +56,8 @@ namespace ntt {
           });
           timers.stop("Custom");
         }
-        auto print_sorting = (sort_interval > 0 and step % sort_interval == 0);
+        auto print_prtl_clear = (clear_interval > 0 and
+                                 step % clear_interval == 0 and step > 0);
 
         // advance time & step
         time += dt;
@@ -109,7 +110,7 @@ namespace ntt {
             m_metadomain.species_labels(),
             m_metadomain.l_npart_perspec(),
             m_metadomain.l_maxnpart_perspec(),
-            print_sorting,
+            print_prtl_clear,
             print_output,
             print_checkpoint,
             m_params.get<bool>("diagnostics.colored_stdout"));
@@ -119,12 +120,12 @@ namespace ntt {
     }
   }
 
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>;
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_2D>>;
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_3D>>;
-  template class Engine<SimEngine::SRPIC, metric::Spherical<Dim::_2D>>;
-  template class Engine<SimEngine::SRPIC, metric::QSpherical<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>>;
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_2D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_3D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Spherical<Dim::_2D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::QSpherical<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>>::run();
 } // namespace ntt

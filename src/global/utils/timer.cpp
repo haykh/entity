@@ -116,21 +116,23 @@ namespace timer {
         (timer.second / local_tot) * 100.0);
       timer_stats.insert(
         { name,
-          std::make_tuple(timer.second,
-                          timer.second / static_cast<duration_t>(npart),
-                          timer.second / static_cast<duration_t>(ncells),
-                          pcent,
-                          0u) });
+          std::make_tuple(
+            timer.second,
+            npart > 0 ? timer.second / static_cast<duration_t>(npart) : 0.0,
+            timer.second / static_cast<duration_t>(ncells),
+            pcent,
+            0u) });
     }
     timer_stats.insert({ "Total", std::make_tuple(local_tot, 0.0, 0.0, 100u, 0u) });
 #endif
     return timer_stats;
   }
 
-  auto Timers::printAll(TimerFlags flags, std::size_t npart, std::size_t ncells) const
-    -> std::string {
-    const std::vector<std::string> extras { "Sorting", "Output", "Checkpoint" };
-    const auto                     stats = gather(extras, npart, ncells);
+  auto Timers::printAll(TimerFlags  flags,
+                        std::size_t npart,
+                        std::size_t ncells) const -> std::string {
+    const std::vector<std::string> extras { "PrtlClear", "Output", "Checkpoint" };
+    const auto stats = gather(extras, npart, ncells);
     if (stats.empty()) {
       return "";
     }
@@ -253,8 +255,8 @@ namespace timer {
       }
     }
 
-    // print extra timers for output/checkpoint/sorting
-    const std::vector<TimerFlags> extras_f { Timer::PrintSorting,
+    // print extra timers for output/checkpoint/prtlClear
+    const std::vector<TimerFlags> extras_f { Timer::PrintPrtlClear,
                                              Timer::PrintOutput,
                                              Timer::PrintCheckpoint };
     for (auto i { 0u }; i < extras.size(); ++i) {

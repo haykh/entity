@@ -84,6 +84,7 @@ namespace checkpoint {
                                        { adios2::UnknownDim },
                                        { adios2::UnknownDim },
                                        { adios2::UnknownDim });
+
       for (auto d { 0u }; d < dim; ++d) {
         m_io.DefineVariable<int>(fmt::format("s%d_i%d", s + 1, d + 1),
                                  { adios2::UnknownDim },
@@ -102,18 +103,21 @@ namespace checkpoint {
                                       { adios2::UnknownDim },
                                       { adios2::UnknownDim });
       }
+
       if (dim == Dim::_2D and C != ntt::Coord::Cart) {
         m_io.DefineVariable<real_t>(fmt::format("s%d_phi", s + 1),
                                     { adios2::UnknownDim },
                                     { adios2::UnknownDim },
                                     { adios2::UnknownDim });
       }
+
       for (auto d { 0u }; d < 3; ++d) {
         m_io.DefineVariable<real_t>(fmt::format("s%d_ux%d", s + 1, d + 1),
                                     { adios2::UnknownDim },
                                     { adios2::UnknownDim },
                                     { adios2::UnknownDim });
       }
+
       m_io.DefineVariable<short>(fmt::format("s%d_tag", s + 1),
                                  { adios2::UnknownDim },
                                  { adios2::UnknownDim },
@@ -122,11 +126,11 @@ namespace checkpoint {
                                   { adios2::UnknownDim },
                                   { adios2::UnknownDim },
                                   { adios2::UnknownDim });
-      for (auto p { 0u }; p < nplds[s]; ++p) {
-        m_io.DefineVariable<real_t>(fmt::format("s%d_pld%d", s + 1, p + 1),
-                                    { adios2::UnknownDim },
-                                    { adios2::UnknownDim },
-                                    { adios2::UnknownDim });
+      if (nplds[s] > 0) {
+        m_io.DefineVariable<real_t>(fmt::format("s%d_plds", s + 1),
+                                    { adios2::UnknownDim, nplds[s] },
+                                    { adios2::UnknownDim, 0 },
+                                    { adios2::UnknownDim, nplds[s] });
       }
     }
   }
@@ -235,6 +239,25 @@ namespace checkpoint {
     auto data_h = Kokkos::create_mirror_view(data);
     Kokkos::deep_copy(data_h, data);
     auto data_sub = Kokkos::subview(data_h, slice);
+    m_writer.Put(var, data_sub.data(), adios2::Mode::Sync);
+  }
+
+  void Writer::saveParticlePayloads(const std::string&       quantity,
+                                    std::size_t              nplds,
+                                    std::size_t              glob_total,
+                                    std::size_t              loc_offset,
+                                    std::size_t              loc_size,
+                                    const array_t<real_t**>& data) {
+    const auto slice = range_tuple_t(0, loc_size);
+    auto       var   = m_io.InquireVariable<real_t>(quantity);
+
+    var.SetShape({ glob_total, nplds });
+    var.SetSelection(
+      adios2::Box<adios2::Dims>({ loc_offset, 0 }, { loc_size, nplds }));
+
+    auto data_h = Kokkos::create_mirror_view(data);
+    Kokkos::deep_copy(data_h, data);
+    auto data_sub = Kokkos::subview(data_h, slice, range_tuple_t(0, nplds));
     m_writer.Put(var, data_sub.data(), adios2::Mode::Sync);
   }
 

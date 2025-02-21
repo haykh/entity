@@ -32,7 +32,7 @@ const auto mink_1d = u8R"(
     fields = [["PERIODIC"]]
     particles = [["ABSORB", "ABSORB"]]
 
-    [grid.boundaries.absorb]
+    [grid.boundaries.match]
       coeff = 10.0
       ds = 0.025
 
@@ -48,7 +48,7 @@ const auto mink_1d = u8R"(
 
 [particles]
   ppc0 = 10.0
-  sort_interval = 100
+  clear_interval = 100
 
   [[particles.species]]
     label = "e-"
@@ -101,10 +101,10 @@ const auto sph_2d = u8R"(
     metric = "spherical"
 
   [grid.boundaries]
-    fields = [["ATMOSPHERE", "ABSORB"]]
+    fields = [["ATMOSPHERE", "MATCH"]]
     particles = [["ATMOSPHERE", "ABSORB"]]
 
-    [grid.boundaries.absorb]
+    [grid.boundaries.match]
       coeff = 10.0
 
     [grid.boundaries.atmosphere]
@@ -134,7 +134,7 @@ const auto sph_2d = u8R"(
 [particles]
   ppc0 = 25.0
   use_weights = true
-  sort_interval = 50
+  clear_interval = 50
 
 
   [[particles.species]]
@@ -180,7 +180,7 @@ const auto qks_2d = u8R"(
     ks_a = 0.99
 
   [grid.boundaries]
-    fields = [["ABSORB"]]
+    fields = [["MATCH"]]
     particles = [["ABSORB"]]
 
 [scales]
@@ -199,7 +199,7 @@ const auto qks_2d = u8R"(
 
 [particles]
   ppc0 = 4.0
-  sort_interval = 100
+  clear_interval = 100
 
   [[particles.species]]
     label = "e-"
@@ -269,7 +269,7 @@ auto main(int argc, char* argv[]) -> int {
                    (real_t)0.0078125,
                    "scales.V0");
       boundaries_t<FldsBC> fbc = {
-        {FldsBC::PERIODIC, FldsBC::PERIODIC}
+        { FldsBC::PERIODIC, FldsBC::PERIODIC }
       };
       assert_equal<FldsBC>(
         params_mink_1d.get<boundaries_t<FldsBC>>("grid.boundaries.fields")[0].first,
@@ -345,8 +345,8 @@ auto main(int argc, char* argv[]) -> int {
                               "simulation.engine");
 
       boundaries_t<FldsBC> fbc = {
-        {FldsBC::ATMOSPHERE, FldsBC::ABSORB},
-        {      FldsBC::AXIS,   FldsBC::AXIS}
+        { FldsBC::ATMOSPHERE, FldsBC::MATCH },
+        {       FldsBC::AXIS,  FldsBC::AXIS }
       };
 
       assert_equal<real_t>(params_sph_2d.get<real_t>("scales.B0"),
@@ -381,16 +381,16 @@ auto main(int argc, char* argv[]) -> int {
         fbc.size(),
         "grid.boundaries.fields.size()");
 
-      // absorb coeffs
+      // match coeffs
       assert_equal<real_t>(
-        params_sph_2d.get<real_t>("grid.boundaries.absorb.ds"),
-        (real_t)(defaults::bc::absorb::ds_frac * 19.0),
-        "grid.boundaries.absorb.ds");
+        params_sph_2d.get<real_t>("grid.boundaries.match.ds"),
+        (real_t)(defaults::bc::match::ds_frac * 19.0),
+        "grid.boundaries.match.ds");
 
       assert_equal<real_t>(
-        params_sph_2d.get<real_t>("grid.boundaries.absorb.coeff"),
+        params_sph_2d.get<real_t>("grid.boundaries.match.coeff"),
         (real_t)10.0,
-        "grid.boundaries.absorb.coeff");
+        "grid.boundaries.match.coeff");
 
       assert_equal(params_sph_2d.get<bool>("particles.use_weights"),
                    true,
@@ -480,9 +480,9 @@ auto main(int argc, char* argv[]) -> int {
                            "grid.metric.ks_rh");
 
       const auto expect = std::map<std::string, real_t> {
-        {"r0",  0.0},
-        { "h", 0.25},
-        { "a", 0.99}
+        { "r0",  0.0 },
+        {  "h", 0.25 },
+        {  "a", 0.99 }
       };
       auto read = params_qks_2d.get<std::map<std::string, real_t>>(
         "grid.metric.params");
@@ -501,8 +501,8 @@ auto main(int argc, char* argv[]) -> int {
         "algorithms.gr.pusher_niter");
 
       boundaries_t<PrtlBC> pbc = {
-        {PrtlBC::HORIZON, PrtlBC::ABSORB},
-        {   PrtlBC::AXIS,   PrtlBC::AXIS}
+        { PrtlBC::HORIZON, PrtlBC::ABSORB },
+        {    PrtlBC::AXIS,   PrtlBC::AXIS }
       };
 
       assert_equal<real_t>(params_qks_2d.get<real_t>("scales.B0"),
@@ -537,16 +537,16 @@ auto main(int argc, char* argv[]) -> int {
         pbc.size(),
         "grid.boundaries.particles.size()");
 
-      // absorb coeffs
+      // match coeffs
       assert_equal<real_t>(
-        params_qks_2d.get<real_t>("grid.boundaries.absorb.ds"),
-        (real_t)(defaults::bc::absorb::ds_frac * (100.0 - 0.8)),
-        "grid.boundaries.absorb.ds");
+        params_qks_2d.get<real_t>("grid.boundaries.match.ds"),
+        (real_t)(defaults::bc::match::ds_frac * (100.0 - 0.8)),
+        "grid.boundaries.match.ds");
 
       assert_equal<real_t>(
-        params_qks_2d.get<real_t>("grid.boundaries.absorb.coeff"),
-        defaults::bc::absorb::coeff,
-        "grid.boundaries.absorb.coeff");
+        params_qks_2d.get<real_t>("grid.boundaries.match.coeff"),
+        defaults::bc::match::coeff,
+        "grid.boundaries.match.coeff");
 
       const auto species = params_qks_2d.get<std::vector<ParticleSpecies>>(
         "particles.species");
@@ -579,86 +579,3 @@ auto main(int argc, char* argv[]) -> int {
 
   return 0;
 }
-
-// const auto mink_1d = R"(
-// [simulation]
-//   name = ""
-//   engine = ""
-//   runtime = ""
-
-// [grid]
-//   resolution = ""
-//   extent = ""
-
-//   [grid.metric]
-//     metric = ""
-//     qsph_r0 = ""
-//     qsph_h = ""
-//     ks_a = ""
-
-//   [grid.boundaries]
-//     fields = ""
-//     particles = ""
-//     absorb_d = ""
-//     absorb_coeff = ""
-
-// [scales]
-//   larmor0 = ""
-//   skindepth0 = ""
-
-// [algorithms]
-//   current_filters = ""
-
-//   [algorithms.toggles]
-//     fieldsolver = ""
-//     deposit = ""
-
-//   [algorithms.timestep]
-//     CFL = ""
-//     correction = ""
-
-//   [algorithms.gr]
-//     pusher_eps = ""
-//     pusher_niter = ""
-
-//   [algorithms.gca]
-//     e_ovr_b_max = ""
-//     larmor_max = ""
-
-//   [algorithms.synchrotron]
-//     gamma_rad = ""
-
-// [particles]
-//   ppc0 = ""
-//   use_weights = ""
-//   sort_interval = ""
-
-//   [[particles.species]]
-//     label = ""
-//     mass = ""
-//     charge = ""
-//     maxnpart = ""
-//     pusher = ""
-//     n_payloads = ""
-//     cooling = ""
-// [setup]
-
-// [output]
-//   fields = ""
-//   particles = ""
-//   format = ""
-//   mom_smooth = ""
-//   fields_stride = ""
-//   prtl_stride = ""
-//   interval = ""
-//   interval_time = ""
-
-//   [output.debug]
-//     as_is = ""
-//     ghosts = ""
-
-// [diagnostics]
-//   interval = ""
-//   log_level = ""
-//   blocking_timers = ""
-// )"_toml;

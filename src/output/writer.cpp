@@ -19,6 +19,7 @@
   // #include <hip/hip_runtime.h>
 #endif
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -26,9 +27,11 @@ namespace out {
 
   void Writer::init(adios2::ADIOS*     ptr_adios,
                     const std::string& engine,
-                    const std::string& title) {
-    m_engine = engine;
-    p_adios  = ptr_adios;
+                    const std::string& title,
+                    bool               use_separate_files) {
+    m_separate_files = use_separate_files;
+    m_engine         = engine;
+    p_adios          = ptr_adios;
 
     raise::ErrorIf(p_adios == nullptr, "ADIOS pointer is null", HERE);
 
@@ -37,7 +40,7 @@ namespace out {
 
     m_io.DefineVariable<std::size_t>("Step");
     m_io.DefineVariable<long double>("Time");
-    m_fname = title + (m_engine == "hdf5" ? ".h5" : ".bp");
+    m_fname = title;
   }
 
   void Writer::addTracker(const std::string& type,
@@ -423,33 +426,75 @@ namespace out {
     m_writer.Put(vare, xe_h);
   }
 
-  void Writer::beginWriting(std::size_t tstep, long double time) {
+  void Writer::beginWriting(WriteModeTags write_mode,
+                            std::size_t   tstep,
+                            long double   time) {
+    raise::ErrorIf(write_mode == WriteMode::None, "None is not a valid mode", HERE);
     raise::ErrorIf(p_adios == nullptr, "ADIOS pointer is null", HERE);
-    p_adios->ExitComputationBlock();
-    if (m_writing_mode) {
+    if (m_active_mode != WriteMode::None) {
       raise::Fatal("Already writing", HERE);
     }
-    m_writing_mode = true;
+    m_active_mode = write_mode;
     try {
-      m_writer = m_io.Open(m_fname, m_mode);
+      std::string       filename;
+      const std::string ext = m_engine == "hdf5" ? "h5" : "bp";
+      if (m_separate_files) {
+        std::string mode_str;
+        if (m_active_mode == WriteMode::Fields) {
+          mode_str = "fields";
+        } else if (m_active_mode == WriteMode::Particles) {
+          mode_str = "particles";
+        } else if (m_active_mode == WriteMode::Spectra) {
+          mode_str = "spectra";
+        } else {
+          raise::Fatal("Unknown write mode", HERE);
+        }
+        CallOnce(
+          [](auto& main_path, auto& mode_path) {
+            const std::filesystem::path main { main_path };
+            const std::filesystem::path mode { mode_path };
+            if (!std::filesystem::exists(main_path)) {
+              std::filesystem::create_directory(main_path);
+            }
+            if (!std::filesystem::exists(main / mode)) {
+              std::filesystem::create_directory(main / mode);
+            }
+          },
+          m_fname,
+          mode_str);
+        filename = fmt::format("%s/%s/%s.%08lu.%s",
+                               m_fname.c_str(),
+                               mode_str.c_str(),
+                               mode_str.c_str(),
+                               tstep,
+                               ext.c_str());
+        m_mode   = adios2::Mode::Write;
+      } else {
+        filename = fmt::format("%s.%s", m_fname.c_str(), ext.c_str());
+        m_mode   = std::filesystem::exists(filename) ? adios2::Mode::Append
+                                                     : adios2::Mode::Write;
+      }
+      m_writer = m_io.Open(filename, m_mode);
     } catch (std::exception& e) {
       raise::Fatal(e.what(), HERE);
     }
-    m_mode = adios2::Mode::Append;
     m_writer.BeginStep();
     m_writer.Put(m_io.InquireVariable<std::size_t>("Step"), &tstep);
     m_writer.Put(m_io.InquireVariable<long double>("Time"), &time);
   }
 
-  void Writer::endWriting() {
+  void Writer::endWriting(WriteModeTags write_mode) {
+    raise::ErrorIf(write_mode == WriteMode::None, "None is not a valid mode", HERE);
     raise::ErrorIf(p_adios == nullptr, "ADIOS pointer is null", HERE);
-    if (!m_writing_mode) {
+    if (m_active_mode == WriteMode::None) {
       raise::Fatal("Not writing", HERE);
     }
-    m_writing_mode = false;
+    if (m_active_mode != write_mode) {
+      raise::Fatal("Writing mode mismatch", HERE);
+    }
+    m_active_mode = WriteMode::None;
     m_writer.EndStep();
     m_writer.Close();
-    p_adios->EnterComputationBlock();
   }
 
   template void Writer::writeField<Dim::_1D, 3>(const std::vector<std::string>&,

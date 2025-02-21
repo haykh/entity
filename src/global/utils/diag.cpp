@@ -21,8 +21,9 @@
 #include <vector>
 
 namespace diag {
-  auto npart_stats(std::size_t npart, std::size_t maxnpart)
-    -> std::vector<std::pair<std::size_t, unsigned short>> {
+  auto npart_stats(
+    std::size_t npart,
+    std::size_t maxnpart) -> std::vector<std::pair<std::size_t, unsigned short>> {
     auto stats = std::vector<std::pair<std::size_t, unsigned short>>();
 #if !defined(MPI_ENABLED)
     stats.push_back(
@@ -84,7 +85,7 @@ namespace diag {
                         const std::vector<std::string>& species_labels,
                         const std::vector<std::size_t>& species_npart,
                         const std::vector<std::size_t>& species_maxnpart,
-                        bool                            print_sorting,
+                        bool                            print_prtl_clear,
                         bool                            print_output,
                         bool                            print_checkpoint,
                         bool                            print_colors) {
@@ -96,8 +97,8 @@ namespace diag {
     if (species_labels.size() == 0) {
       diag_flags ^= Diag::Species;
     }
-    if (print_sorting) {
-      timer_flags |= Timer::PrintSorting;
+    if (print_prtl_clear) {
+      timer_flags |= Timer::PrintPrtlClear;
     }
     if (print_output) {
       timer_flags |= Timer::PrintOutput;

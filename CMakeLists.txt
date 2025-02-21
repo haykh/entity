@@ -55,7 +55,9 @@ if(${DEBUG} STREQUAL "OFF")
   set(CMAKE_BUILD_TYPE
       Release
       CACHE STRING "CMake build type")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG")
+  set(CMAKE_CXX_FLAGS
+      "${CMAKE_CXX_FLAGS} -DNDEBUG -Wno-unused-local-typedefs -Wno-unknown-cuda-version"
+  )
 else()
   set(CMAKE_BUILD_TYPE
       Debug
@@ -63,8 +65,6 @@ else()
   set(CMAKE_CXX_FLAGS
       "${CMAKE_CXX_FLAGS} -DDEBUG -Wall -Wextra -Wno-unknown-pragmas")
 endif()
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
 
 # options
 set(precisions
@@ -101,23 +101,12 @@ if(${output})
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/adios2Config.cmake)
   find_or_fetch_dependency(adios2 FALSE)
   if(NOT DEFINED ENV{HDF5_ROOT})
-    set(USE_CUSTOM_HDF5 OFF)
     if(DEFINED ENV{CONDA_PREFIX})
       execute_process(COMMAND bash -c "conda list | grep \"hdf5\" -q"
                       RESULT_VARIABLE HDF5_INSTALLED)
       if(HDF5_INSTALLED EQUAL 0)
         set(HDF5_ROOT $ENV{CONDA_PREFIX})
-      else()
-        set(USE_CUSTOM_HDF5 ON)
       endif()
-    else()
-      set(USE_CUSTOM_HDF5 ON)
-    endif()
-    if(USE_CUSTOM_HDF5)
-      message(
-        FATAL_ERROR
-          "HDF5_ROOT is not set. Please set it to the root of the HDF5 installation"
-      )
     endif()
   endif()
   find_package(HDF5 REQUIRED)

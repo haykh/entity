@@ -1,21 +1,21 @@
 [simulation]
-  name = "em_vacuum"
-  engine = "srpic"
+  name    = "em_vacuum"
+  engine  = "srpic"
   runtime = 2.0
 
 [grid]
   resolution = [256, 512]
-  extent = [[-1.0, 1.0], [-2.0, 2.0]]
+  extent     = [[-1.0, 1.0], [-2.0, 2.0]]
 
   [grid.metric]
     metric = "minkowski"
 
   [grid.boundaries]
-    fields = [["PERIODIC"], ["PERIODIC"]]
+    fields    = [["PERIODIC"], ["PERIODIC"]]
     particles = [["PERIODIC"], ["PERIODIC"]]
-    
+
 [scales]
-  larmor0 = 0.1
+  larmor0    = 0.1
   skindepth0 = 0.01
 
 [algorithms]
@@ -28,12 +28,12 @@
 
 [setup]
   amplitude = 1.0
-  kx1 = 1
-  kx2 = 1
-  kx3 = 0
-  
+  kx1       = 1
+  kx2       = 1
+  kx3       = 0
+
 [output]
-  format = "hdf5"
+  format        = "hdf5"
   interval_time = 0.1
 
   [output.fields]
