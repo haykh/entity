@@ -220,7 +220,8 @@ namespace checkpoint {
     auto field_h = Kokkos::create_mirror_view(field);
     Kokkos::deep_copy(field_h, field);
     m_writer.Put(m_io.InquireVariable<real_t>(fieldname),
-                 field_h.data());
+                 field_h.data(),
+                 adios2::Mode::Sync);
   }
 
   template <typename T>
@@ -238,7 +239,7 @@ namespace checkpoint {
     auto data_h = Kokkos::create_mirror_view(data);
     Kokkos::deep_copy(data_h, data);
     auto data_sub = Kokkos::subview(data_h, slice);
-    m_writer.Put(var, data_sub.data());
+    m_writer.Put(var, data_sub.data(), adios2::Mode::Sync);
   }
 
   void Writer::saveParticlePayloads(const std::string&       quantity,
@@ -257,7 +258,7 @@ namespace checkpoint {
     auto data_h = Kokkos::create_mirror_view(data);
     Kokkos::deep_copy(data_h, data);
     auto data_sub = Kokkos::subview(data_h, slice, range_tuple_t(0, nplds));
-    m_writer.Put(var, data_sub.data());
+    m_writer.Put(var, data_sub.data(), adios2::Mode::Sync);
   }
 
   template void Writer::savePerDomainVariable<int>(const std::string&,
