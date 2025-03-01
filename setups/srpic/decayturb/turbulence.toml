@@ -1,25 +1,25 @@
 [simulation]
-  name    = "turbulence"
-  engine  = "srpic"
-  runtime = 20.0
+  name = "turbulence"
+  engine = "srpic"
+  runtime = 4.0
 
 [grid]
-  resolution = [184, 184, 184]
-  extent     = [[-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]]
+  resolution = [1024,1024]
+  extent = [[0.0, 1.0], [0.0, 1.0]]
 
   [grid.metric]
     metric = "minkowski"
 
   [grid.boundaries]
-    fields    = [["PERIODIC"], ["PERIODIC"], ["PERIODIC"]]
-    particles = [["PERIODIC"], ["PERIODIC"], ["PERIODIC"]]
+    fields = [["PERIODIC"], ["PERIODIC"]]
+    particles = [["PERIODIC"], ["PERIODIC"]]
 
 [scales]
-  larmor0    = 0.02
-  skindepth0 = 0.02
+  larmor0 = 0.0000563819
+  skindepth0 = 0.000976563
 
 [algorithms]
-  current_filters = 4
+  current_filters = 8
 
   [algorithms.timestep]
     CFL = 0.5
@@ -28,22 +28,39 @@
   ppc0 = 32.0
 
   [[particles.species]]
-    label    = "e-"
-    mass     = 1.0
-    charge   = -1.0
-    maxnpart = 1e8
+  label = "e-"
+  mass = 1.0
+  charge = -1.0
+  maxnpart = 2e8
+  n_payloads = 1
 
   [[particles.species]]
-    label    = "e+"
-    mass     = 1.0
-    charge   = 1.0
-    maxnpart = 1e8
+  label = "e+"
+  mass = 1.0
+  charge = 1.0
+  maxnpart = 2e8
+  n_payloads = 1
 
 [setup]
+  temperature = 100.0
+#  pl_index = -3.0
+  machno = 1000.0
+  Bnorm = 1.0
 
 [output]
-  format        = "hdf5"
-  interval_time = 0.1
+  format = "hdf5"
 
   [output.fields]
-    quantities = ["N_1", "N_2", "E", "B", "J", "T00_1", "T00_2"]
+    interval_time = 0.025
+    quantities = ["B"]
+
+  [output.particles]
+    enable = false
+
+  [output.spectra]
+    enable = false
+    interval_time = 0.5
+
+[checkpoint]
+    interval_time = 1.0
+    keep = 0
