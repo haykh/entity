@@ -596,6 +596,10 @@ namespace ntt {
           if (domain.mesh.flds_bc_in(direction) == FldsBC::FIXED) {
             FixedFieldsIn(direction, domain, tags);
           }
+        } else if (m_metadomain.mesh().flds_bc_in(direction) == FldsBC::CONDUCTOR) {
+          if (domain.mesh.flds_bc_in(direction) == FldsBC::CONDUCTOR) {
+            PerfectConductorFieldsIn(direction, domain, tags);
+          }
         } else if (m_metadomain.mesh().flds_bc_in(direction) == FldsBC::CUSTOM) {
           if (domain.mesh.flds_bc_in(direction) == FldsBC::CUSTOM) {
             CustomFieldsIn(direction, domain, tags);
@@ -834,202 +838,354 @@ namespace ntt {
       }
     }
 
-    void AtmosphereFieldsIn(dir::direction_t<M::Dim> direction,
-                            domain_t&                domain,
-                            BCTags                   tags) {
+    void PerfectConductorFieldsIn(dir::direction_t<M::Dim> direction,
+                       domain_t&                domain,
+                       BCTags                   tags) {
       /**
-       * atmosphere field boundaries
+       * perfect conductor field boundaries
        */
-      if constexpr (traits::has_member<traits::pgen::atm_fields_t, pgen_t>::value) {
-        const auto [sign, dim, xg_min, xg_max] = get_atm_extent(direction);
-        const auto           dd = static_cast<unsigned short>(dim);
-        boundaries_t<real_t> box;
-        boundaries_t<bool>   incl_ghosts;
-        for (unsigned short d { 0 }; d < M::Dim; ++d) {
-          if (d == dd) {
-            box.push_back({ xg_min, xg_max });
-            if (sign > 0) {
-              incl_ghosts.push_back({ false, true });
-            } else {
-              incl_ghosts.push_back({ true, false });
-            }
-          } else {
-            box.push_back(Range::All);
-            incl_ghosts.push_back({ true, true });
-          }
-        }
-        if (not domain.mesh.Intersects(box)) {
-          return;
-        }
-        const auto intersect_range = domain.mesh.ExtentToRange(box, incl_ghosts);
-        tuple_t<std::size_t, M::Dim> range_min { 0 };
-        tuple_t<std::size_t, M::Dim> range_max { 0 };
+      const auto sign = direction.get_sign();
+      const auto dim  = direction.get_dim();
+      raise::ErrorIf(dim != in::x1 and M::CoordType != Coord::Cart,
+                     "Perfect conductor BCs only implemented for x1 in "
+                     "non-cartesian coordinates",
+                     HERE);
 
-        for (unsigned short d { 0 }; d < M::Dim; ++d) {
-          range_min[d] = intersect_range[d].first;
-          range_max[d] = intersect_range[d].second;
-        }
-        auto        atm_fields = m_pgen.AtmFields(time);
-        std::size_t il_edge;
-        if (sign > 0) {
-          il_edge = range_min[dd] - N_GHOSTS;
+
+      std::vector<std::size_t> xi_min, xi_max;
+
+      const std::vector<in>    all_dirs { in::x1, in::x2, in::x3 };
+      
+      for (unsigned short d { 0 }; d < static_cast<unsigned short>(M::Dim); ++d) {
+        const auto dd = all_dirs[d];
+        if (dim == dd) {
+            xi_min.push_back(0);
+            xi_max.push_back(N_GHOSTS);
         } else {
-          il_edge = range_max[dd] - 1 - N_GHOSTS;
+          xi_min.push_back(0);
+          xi_max.push_back(domain.mesh.n_all(dd));
         }
-        const auto range = CreateRangePolicy<M::Dim>(range_min, range_max);
-        if (dim == in::x1) {
-          if (sign > 0) {
-            Kokkos::parallel_for(
-              "AtmosphereBCFields",
-              range,
-              kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, true, in::x1>(
+      }
+      raise::ErrorIf(xi_min.size() != xi_max.size() or
+                       xi_min.size() != static_cast<std::size_t>(M::Dim),
+                     "Invalid range size",
+                     HERE);
+
+
+      if constexpr (M::Dim == Dim::_1D)
+      {
+        Kokkos::parallel_for(
+            "MatchFields",
+            CreateRangePolicy<M::Dim>({xi_min[0]}, {xi_max[0]}),
+            kernel::bc::ConductorBoundaries_kernel<SimEngine::SRPIC, M, in::x1>(
                 domain.fields.em,
-                atm_fields,
-                domain.mesh.metric,
-                il_edge,
                 tags));
-          } else {
-            Kokkos::parallel_for(
-              "AtmosphereBCFields",
-              range,
-              kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, false, in::x1>(
+      }
+
+      if constexpr (M::Dim == Dim::_2D)
+      {
+        Kokkos::parallel_for(
+            "MatchFields",
+            CreateRangePolicy<M::Dim>({xi_min[0], xi_min[1]}, {xi_max[0], xi_max[1]}),
+            kernel::bc::ConductorBoundaries_kernel<SimEngine::SRPIC, M, in::x1>(
                 domain.fields.em,
-                atm_fields,
-                domain.mesh.metric,
-                il_edge,
                 tags));
-          }
-        } else if (dim == in::x2) {
-          if constexpr (M::Dim == Dim::_2D or M::Dim == Dim::_3D) {
-            if (sign > 0) {
-              Kokkos::parallel_for(
-                "AtmosphereBCFields",
-                range,
-                kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, true, in::x2>(
-                  domain.fields.em,
-                  atm_fields,
-                  domain.mesh.metric,
-                  il_edge,
-                  tags));
-            } else {
-              Kokkos::parallel_for(
-                "AtmosphereBCFields",
-                range,
-                kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, false, in::x2>(
-                  domain.fields.em,
-                  atm_fields,
-                  domain.mesh.metric,
-                  il_edge,
-                  tags));
-            }
-          } else {
-            raise::Error("Invalid dimension", HERE);
-          }
-        } else if (dim == in::x3) {
-          if constexpr (M::Dim == Dim::_3D) {
-            if (sign > 0) {
-              Kokkos::parallel_for(
-                "AtmosphereBCFields",
-                range,
-                kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, true, in::x3>(
-                  domain.fields.em,
-                  atm_fields,
-                  domain.mesh.metric,
-                  il_edge,
-                  tags));
-            } else {
-              Kokkos::parallel_for(
-                "AtmosphereBCFields",
-                range,
-                kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, false, in::x3>(
-                  domain.fields.em,
-                  atm_fields,
-                  domain.mesh.metric,
-                  il_edge,
-                  tags));
-            }
-          } else {
-            raise::Error("Invalid dimension", HERE);
-          }
-        } else {
+      }
+
+      if constexpr (M::Dim == Dim::_3D)
+      {
+        Kokkos::parallel_for(
+            "MatchFields",
+            CreateRangePolicy<M::Dim>({xi_min[0], xi_min[1], xi_min[2]}, {xi_max[0], xi_max[1], xi_max[2]}),
+            kernel::bc::ConductorBoundaries_kernel<SimEngine::SRPIC, M, in::x1>(
+                domain.fields.em,
+                tags));
+      }
+
+      // these components need to be set to zero at the boundary
+      std::vector<unsigned short> comps = {em::ex2, em::ex3, em::bx1};
+      for (const auto &comp : comps)
+      {
+        if constexpr (M::Dim == Dim::_1D)
+        {
+          Kokkos::deep_copy(
+              Kokkos::subview(domain.fields.em,
+                              std::make_pair(N_GHOSTS, N_GHOSTS),
+                              comp),
+              ZERO);
+        }
+        else if constexpr (M::Dim == Dim::_2D)
+        {
+          Kokkos::deep_copy(
+              Kokkos::subview(domain.fields.em,
+                              std::make_pair(N_GHOSTS, N_GHOSTS+1),
+                              std::make_pair(xi_min[1], xi_max[1]),
+                              comp),
+              ZERO);
+        }
+        else if constexpr (M::Dim == Dim::_3D)
+        {
+          Kokkos::deep_copy(
+              Kokkos::subview(domain.fields.em,
+                              std::make_pair(N_GHOSTS, N_GHOSTS),
+                              std::make_pair(xi_min[1], xi_max[1]),
+                              std::make_pair(xi_min[2], xi_max[2]),
+                              comp),
+              ZERO);
+        }
+        else
+        {
           raise::Error("Invalid dimension", HERE);
         }
-      } else {
-        raise::Error("Atm fields not implemented in PGEN for atmosphere BCs", HERE);
       }
     }
 
-    void CustomFieldsIn(dir::direction_t<M::Dim> direction,
-                        domain_t&                domain,
-                        BCTags                   tags) {
-      (void)direction;
-      (void)domain;
-      (void)tags;
-      raise::Error("Custom boundaries not implemented", HERE);
-      // if constexpr (
-      //   traits::has_member<traits::pgen::custom_fields_t, pgen_t>::value) {
-      //   const auto [box, custom_fields] = m_pgen.CustomFields(time);
-      //   if (domain.mesh.Intersects(box)) {
-      //   }
-      //
-      // } else {
-      //   raise::Error("Custom boundaries not implemented", HERE);
-      // }
-    }
+        void AtmosphereFieldsIn(dir::direction_t<M::Dim> direction,
+                                domain_t & domain,
+                                BCTags tags)
+        {
+          /**
+           * atmosphere field boundaries
+           */
+          if constexpr (traits::has_member<traits::pgen::atm_fields_t, pgen_t>::value)
+          {
+            const auto [sign, dim, xg_min, xg_max] = get_atm_extent(direction);
+            const auto dd = static_cast<unsigned short>(dim);
+            boundaries_t<real_t> box;
+            boundaries_t<bool> incl_ghosts;
+            for (unsigned short d{0}; d < M::Dim; ++d)
+            {
+              if (d == dd)
+              {
+                box.push_back({xg_min, xg_max});
+                if (sign > 0)
+                {
+                  incl_ghosts.push_back({false, true});
+                }
+                else
+                {
+                  incl_ghosts.push_back({true, false});
+                }
+              }
+              else
+              {
+                box.push_back(Range::All);
+                incl_ghosts.push_back({true, true});
+              }
+            }
+            if (not domain.mesh.Intersects(box))
+            {
+              return;
+            }
+            const auto intersect_range = domain.mesh.ExtentToRange(box, incl_ghosts);
+            tuple_t<std::size_t, M::Dim> range_min{0};
+            tuple_t<std::size_t, M::Dim> range_max{0};
 
-    void AtmosphereParticlesIn(const dir::direction_t<M::Dim>& direction,
-                               domain_t&                       domain,
-                               InjTags                         tags) {
-      const auto [sign, dim, xg_min, xg_max] = get_atm_extent(direction);
-
-      const auto x_surf = sign > 0 ? xg_min : xg_max;
-      const auto ds     = m_params.template get<real_t>(
-        "grid.boundaries.atmosphere.ds");
-      const auto temp = m_params.template get<real_t>(
-        "grid.boundaries.atmosphere.temperature");
-      const auto height = m_params.template get<real_t>(
-        "grid.boundaries.atmosphere.height");
-      const auto species =
-        m_params.template get<std::pair<unsigned short, unsigned short>>(
-          "grid.boundaries.atmosphere.species");
-      const auto nmax = m_params.template get<real_t>(
-        "grid.boundaries.atmosphere.density");
-
-      Kokkos::deep_copy(domain.fields.bckp, ZERO);
-      auto scatter_bckp = Kokkos::Experimental::create_scatter_view(
-        domain.fields.bckp);
-      const auto use_weights = M::CoordType != Coord::Cart;
-      const auto ni2         = domain.mesh.n_active(in::x2);
-      const auto inv_n0      = ONE / m_params.template get<real_t>("scales.n0");
-
-      // compute the density of the two species
-      if (tags & Inj::AssumeEmpty) {
-        if constexpr (M::Dim == Dim::_1D) {
-          Kokkos::deep_copy(
-            Kokkos::subview(domain.fields.bckp, Kokkos::ALL, std::make_pair(0, 1)),
-            ZERO);
-        } else if constexpr (M::Dim == Dim::_2D) {
-          Kokkos::deep_copy(Kokkos::subview(domain.fields.bckp,
-                                            Kokkos::ALL,
-                                            Kokkos::ALL,
-                                            std::make_pair(0, 1)),
-                            ZERO);
-        } else if constexpr (M::Dim == Dim::_3D) {
-          Kokkos::deep_copy(Kokkos::subview(domain.fields.bckp,
-                                            Kokkos::ALL,
-                                            Kokkos::ALL,
-                                            Kokkos::ALL,
-                                            std::make_pair(0, 1)),
-                            ZERO);
-        }
-      } else {
-        for (const auto& sp :
-             std::vector<unsigned short>({ species.first, species.second })) {
-          auto& prtl_spec = domain.species[sp - 1];
-          if (prtl_spec.npart() == 0) {
-            continue;
+            for (unsigned short d{0}; d < M::Dim; ++d)
+            {
+              range_min[d] = intersect_range[d].first;
+              range_max[d] = intersect_range[d].second;
+            }
+            auto atm_fields = m_pgen.AtmFields(time);
+            std::size_t il_edge;
+            if (sign > 0)
+            {
+              il_edge = range_min[dd] - N_GHOSTS;
+            }
+            else
+            {
+              il_edge = range_max[dd] - 1 - N_GHOSTS;
+            }
+            const auto range = CreateRangePolicy<M::Dim>(range_min, range_max);
+            if (dim == in::x1)
+            {
+              if (sign > 0)
+              {
+                Kokkos::parallel_for(
+                    "AtmosphereBCFields",
+                    range,
+                    kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, true, in::x1>(
+                        domain.fields.em,
+                        atm_fields,
+                        domain.mesh.metric,
+                        il_edge,
+                        tags));
+              }
+              else
+              {
+                Kokkos::parallel_for(
+                    "AtmosphereBCFields",
+                    range,
+                    kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, false, in::x1>(
+                        domain.fields.em,
+                        atm_fields,
+                        domain.mesh.metric,
+                        il_edge,
+                        tags));
+              }
+            }
+            else if (dim == in::x2)
+            {
+              if constexpr (M::Dim == Dim::_2D or M::Dim == Dim::_3D)
+              {
+                if (sign > 0)
+                {
+                  Kokkos::parallel_for(
+                      "AtmosphereBCFields",
+                      range,
+                      kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, true, in::x2>(
+                          domain.fields.em,
+                          atm_fields,
+                          domain.mesh.metric,
+                          il_edge,
+                          tags));
+                }
+                else
+                {
+                  Kokkos::parallel_for(
+                      "AtmosphereBCFields",
+                      range,
+                      kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, false, in::x2>(
+                          domain.fields.em,
+                          atm_fields,
+                          domain.mesh.metric,
+                          il_edge,
+                          tags));
+                }
+              }
+              else
+              {
+                raise::Error("Invalid dimension", HERE);
+              }
+            }
+            else if (dim == in::x3)
+            {
+              if constexpr (M::Dim == Dim::_3D)
+              {
+                if (sign > 0)
+                {
+                  Kokkos::parallel_for(
+                      "AtmosphereBCFields",
+                      range,
+                      kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, true, in::x3>(
+                          domain.fields.em,
+                          atm_fields,
+                          domain.mesh.metric,
+                          il_edge,
+                          tags));
+                }
+                else
+                {
+                  Kokkos::parallel_for(
+                      "AtmosphereBCFields",
+                      range,
+                      kernel::bc::EnforcedBoundaries_kernel<decltype(atm_fields), M, false, in::x3>(
+                          domain.fields.em,
+                          atm_fields,
+                          domain.mesh.metric,
+                          il_edge,
+                          tags));
+                }
+              }
+              else
+              {
+                raise::Error("Invalid dimension", HERE);
+              }
+            }
+            else
+            {
+              raise::Error("Invalid dimension", HERE);
+            }
           }
-          // clang-format off
+          else
+          {
+            raise::Error("Atm fields not implemented in PGEN for atmosphere BCs", HERE);
+          }
+        }
+
+        void CustomFieldsIn(dir::direction_t<M::Dim> direction,
+                            domain_t & domain,
+                            BCTags tags)
+        {
+          (void)direction;
+          (void)domain;
+          (void)tags;
+          raise::Error("Custom boundaries not implemented", HERE);
+          // if constexpr (
+          //   traits::has_member<traits::pgen::custom_fields_t, pgen_t>::value) {
+          //   const auto [box, custom_fields] = m_pgen.CustomFields(time);
+          //   if (domain.mesh.Intersects(box)) {
+          //   }
+          //
+          // } else {
+          //   raise::Error("Custom boundaries not implemented", HERE);
+          // }
+        }
+
+        void AtmosphereParticlesIn(const dir::direction_t<M::Dim> &direction,
+                                   domain_t &domain,
+                                   InjTags tags)
+        {
+          const auto [sign, dim, xg_min, xg_max] = get_atm_extent(direction);
+
+          const auto x_surf = sign > 0 ? xg_min : xg_max;
+          const auto ds = m_params.template get<real_t>(
+              "grid.boundaries.atmosphere.ds");
+          const auto temp = m_params.template get<real_t>(
+              "grid.boundaries.atmosphere.temperature");
+          const auto height = m_params.template get<real_t>(
+              "grid.boundaries.atmosphere.height");
+          const auto species =
+              m_params.template get<std::pair<unsigned short, unsigned short>>(
+                  "grid.boundaries.atmosphere.species");
+          const auto nmax = m_params.template get<real_t>(
+              "grid.boundaries.atmosphere.density");
+
+          Kokkos::deep_copy(domain.fields.bckp, ZERO);
+          auto scatter_bckp = Kokkos::Experimental::create_scatter_view(
+              domain.fields.bckp);
+          const auto use_weights = M::CoordType != Coord::Cart;
+          const auto ni2 = domain.mesh.n_active(in::x2);
+          const auto inv_n0 = ONE / m_params.template get<real_t>("scales.n0");
+
+          // compute the density of the two species
+          if (tags & Inj::AssumeEmpty)
+          {
+            if constexpr (M::Dim == Dim::_1D)
+            {
+              Kokkos::deep_copy(
+                  Kokkos::subview(domain.fields.bckp, Kokkos::ALL, std::make_pair(0, 1)),
+                  ZERO);
+            }
+            else if constexpr (M::Dim == Dim::_2D)
+            {
+              Kokkos::deep_copy(Kokkos::subview(domain.fields.bckp,
+                                                Kokkos::ALL,
+                                                Kokkos::ALL,
+                                                std::make_pair(0, 1)),
+                                ZERO);
+            }
+            else if constexpr (M::Dim == Dim::_3D)
+            {
+              Kokkos::deep_copy(Kokkos::subview(domain.fields.bckp,
+                                                Kokkos::ALL,
+                                                Kokkos::ALL,
+                                                Kokkos::ALL,
+                                                std::make_pair(0, 1)),
+                                ZERO);
+            }
+          }
+          else
+          {
+            for (const auto &sp :
+                 std::vector<unsigned short>({species.first, species.second}))
+            {
+              auto &prtl_spec = domain.species[sp - 1];
+              if (prtl_spec.npart() == 0)
+              {
+                continue;
+              }
+              // clang-format off
           Kokkos::parallel_for(
             "ComputeMoments",
             prtl_spec.rangeActiveParticles(),
@@ -1043,230 +1199,265 @@ namespace ntt {
               use_weights,
               domain.mesh.metric, domain.mesh.flds_bc(),
               ni2, inv_n0, 0));
-          // clang-format on
-          prtl_spec.set_unsorted();
-        }
-        Kokkos::Experimental::contribute(domain.fields.bckp, scatter_bckp);
-        m_metadomain.SynchronizeFields(domain, Comm::Bckp, { 0, 1 });
-      }
+              // clang-format on
+              prtl_spec.set_unsorted();
+            }
+            Kokkos::Experimental::contribute(domain.fields.bckp, scatter_bckp);
+            m_metadomain.SynchronizeFields(domain, Comm::Bckp, {0, 1});
+          }
 
-      if (dim == in::x1) {
-        if (sign > 0) {
-          const auto atm_injector =
-            arch::AtmosphereInjector<SimEngine::SRPIC, M, true, in::x1> {
-              domain.mesh.metric,
-              domain.fields.bckp,
-              nmax,
-              height,
-              x_surf,
-              ds,
-              temp,
-              domain.random_pool,
-              species
-            };
-          arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
-                                                               domain,
-                                                               atm_injector,
-                                                               nmax,
-                                                               use_weights);
-        } else {
-          const auto atm_injector =
-            arch::AtmosphereInjector<SimEngine::SRPIC, M, false, in::x1> {
-              domain.mesh.metric,
-              domain.fields.bckp,
-              nmax,
-              height,
-              x_surf,
-              ds,
-              temp,
-              domain.random_pool,
-              species
-            };
-          arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
-                                                               domain,
-                                                               atm_injector,
-                                                               nmax,
-                                                               use_weights);
+          if (dim == in::x1)
+          {
+            if (sign > 0)
+            {
+              const auto atm_injector =
+                  arch::AtmosphereInjector<SimEngine::SRPIC, M, true, in::x1>{
+                      domain.mesh.metric,
+                      domain.fields.bckp,
+                      nmax,
+                      height,
+                      x_surf,
+                      ds,
+                      temp,
+                      domain.random_pool,
+                      species};
+              arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
+                                                                   domain,
+                                                                   atm_injector,
+                                                                   nmax,
+                                                                   use_weights);
+            }
+            else
+            {
+              const auto atm_injector =
+                  arch::AtmosphereInjector<SimEngine::SRPIC, M, false, in::x1>{
+                      domain.mesh.metric,
+                      domain.fields.bckp,
+                      nmax,
+                      height,
+                      x_surf,
+                      ds,
+                      temp,
+                      domain.random_pool,
+                      species};
+              arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
+                                                                   domain,
+                                                                   atm_injector,
+                                                                   nmax,
+                                                                   use_weights);
+            }
+          }
+          else if (dim == in::x2)
+          {
+            if (sign > 0)
+            {
+              const auto atm_injector =
+                  arch::AtmosphereInjector<SimEngine::SRPIC, M, true, in::x2>{
+                      domain.mesh.metric,
+                      domain.fields.bckp,
+                      nmax,
+                      height,
+                      x_surf,
+                      ds,
+                      temp,
+                      domain.random_pool,
+                      species};
+              arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
+                                                                   domain,
+                                                                   atm_injector,
+                                                                   nmax,
+                                                                   use_weights);
+            }
+            else
+            {
+              const auto atm_injector =
+                  arch::AtmosphereInjector<SimEngine::SRPIC, M, false, in::x2>{
+                      domain.mesh.metric,
+                      domain.fields.bckp,
+                      nmax,
+                      height,
+                      x_surf,
+                      ds,
+                      temp,
+                      domain.random_pool,
+                      species};
+              arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
+                                                                   domain,
+                                                                   atm_injector,
+                                                                   nmax,
+                                                                   use_weights);
+            }
+          }
+          else if (dim == in::x3)
+          {
+            if (sign > 0)
+            {
+              const auto atm_injector =
+                  arch::AtmosphereInjector<SimEngine::SRPIC, M, true, in::x3>{
+                      domain.mesh.metric,
+                      domain.fields.bckp,
+                      nmax,
+                      height,
+                      x_surf,
+                      ds,
+                      temp,
+                      domain.random_pool,
+                      species};
+              arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
+                                                                   domain,
+                                                                   atm_injector,
+                                                                   nmax,
+                                                                   use_weights);
+            }
+            else
+            {
+              const auto atm_injector =
+                  arch::AtmosphereInjector<SimEngine::SRPIC, M, false, in::x3>{
+                      domain.mesh.metric,
+                      domain.fields.bckp,
+                      nmax,
+                      height,
+                      x_surf,
+                      ds,
+                      temp,
+                      domain.random_pool,
+                      species};
+              arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
+                                                                   domain,
+                                                                   atm_injector,
+                                                                   nmax,
+                                                                   use_weights);
+            }
+          }
+          else
+          {
+            raise::Error("Invalid dimension", HERE);
+          }
+          return;
         }
-      } else if (dim == in::x2) {
-        if (sign > 0) {
-          const auto atm_injector =
-            arch::AtmosphereInjector<SimEngine::SRPIC, M, true, in::x2> {
-              domain.mesh.metric,
-              domain.fields.bckp,
-              nmax,
-              height,
-              x_surf,
-              ds,
-              temp,
-              domain.random_pool,
-              species
-            };
-          arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
-                                                               domain,
-                                                               atm_injector,
-                                                               nmax,
-                                                               use_weights);
-        } else {
-          const auto atm_injector =
-            arch::AtmosphereInjector<SimEngine::SRPIC, M, false, in::x2> {
-              domain.mesh.metric,
-              domain.fields.bckp,
-              nmax,
-              height,
-              x_surf,
-              ds,
-              temp,
-              domain.random_pool,
-              species
-            };
-          arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
-                                                               domain,
-                                                               atm_injector,
-                                                               nmax,
-                                                               use_weights);
-        }
-      } else if (dim == in::x3) {
-        if (sign > 0) {
-          const auto atm_injector =
-            arch::AtmosphereInjector<SimEngine::SRPIC, M, true, in::x3> {
-              domain.mesh.metric,
-              domain.fields.bckp,
-              nmax,
-              height,
-              x_surf,
-              ds,
-              temp,
-              domain.random_pool,
-              species
-            };
-          arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
-                                                               domain,
-                                                               atm_injector,
-                                                               nmax,
-                                                               use_weights);
-        } else {
-          const auto atm_injector =
-            arch::AtmosphereInjector<SimEngine::SRPIC, M, false, in::x3> {
-              domain.mesh.metric,
-              domain.fields.bckp,
-              nmax,
-              height,
-              x_surf,
-              ds,
-              temp,
-              domain.random_pool,
-              species
-            };
-          arch::InjectNonUniform<S, M, decltype(atm_injector)>(m_params,
-                                                               domain,
-                                                               atm_injector,
-                                                               nmax,
-                                                               use_weights);
-        }
-      } else {
-        raise::Error("Invalid dimension", HERE);
-      }
-      return;
-    }
 
-  private:
-    /**
-     * @brief Get the buffer region of the atmosphere and the direction
-     * @param direction direction in which the atmosphere is applied
-     * @return tuple: [sign of the direction, the direction (as in::), the min and max extent
-     * @note xg_min and xg_max are the extents where the fields are set, not the atmosphere itself
-     * @note i.e.
-     *
-     *         fields set      particles injected
-     * ghost zone  |               |
-     *    v        v               v
-     * |....|...........|*******************.....  -> x1
-     * ^                ^
-     * xg_min         xg_max
-     * |                |                  |
-     * |<--  buffer  -->|<-- atmosphere -->|
-     *
-     * in this case the function returns { -1, in::x1, xg_min, xg_max }
-     */
-    auto get_atm_extent(dir::direction_t<M::Dim> direction) const
-      -> std::tuple<short, in, real_t, real_t> {
-      const auto sign     = direction.get_sign();
-      const auto dim      = direction.get_dim();
-      const auto min_buff = m_params.template get<unsigned short>(
-                              "algorithms.current_filters") +
-                            2;
-      const auto buffer_ncells = min_buff > 5 ? min_buff : 5;
-      if (M::CoordType != Coord::Cart and (dim != in::x1 or sign > 0)) {
-        raise::Error("For non-cartesian coordinates atmosphere BCs is "
-                     "possible only in -x1 (@ rmin)",
-                     HERE);
-      }
-      real_t      xg_min { ZERO }, xg_max { ZERO };
-      std::size_t ig_min, ig_max;
-      if (sign > 0) { // + direction
-        ig_min = m_metadomain.mesh().n_active(dim) - buffer_ncells;
-        ig_max = m_metadomain.mesh().n_active(dim);
-      } else { // - direction
-        ig_min = 0;
-        ig_max = buffer_ncells;
-      }
-
-      if (dim == in::x1) {
-        xg_min = m_metadomain.mesh().metric.template convert<1, Crd::Cd, Crd::Ph>(
-          static_cast<real_t>(ig_min));
-        xg_max = m_metadomain.mesh().metric.template convert<1, Crd::Cd, Crd::Ph>(
-          static_cast<real_t>(ig_max));
-      } else if (dim == in::x2) {
-        if constexpr (M::Dim == Dim::_2D or M::Dim == Dim::_3D) {
-          xg_min = m_metadomain.mesh().metric.template convert<2, Crd::Cd, Crd::Ph>(
-            static_cast<real_t>(ig_min));
-          xg_max = m_metadomain.mesh().metric.template convert<2, Crd::Cd, Crd::Ph>(
-            static_cast<real_t>(ig_max));
-        } else {
-          raise::Error("Invalid dimension", HERE);
-        }
-      } else if (dim == in::x3) {
-        if constexpr (M::Dim == Dim::_3D) {
-          xg_min = m_metadomain.mesh().metric.template convert<3, Crd::Cd, Crd::Ph>(
-            static_cast<real_t>(ig_min));
-          xg_max = m_metadomain.mesh().metric.template convert<3, Crd::Cd, Crd::Ph>(
-            static_cast<real_t>(ig_max));
-        } else {
-          raise::Error("Invalid dimension", HERE);
-        }
-      } else {
-        raise::Error("Invalid dimension", HERE);
-      }
-      return { sign, dim, xg_min, xg_max };
-    }
-
-    auto range_with_axis_BCs(const domain_t& domain) -> range_t<M::Dim> {
-      auto range = domain.mesh.rangeActiveCells();
-      if constexpr (M::CoordType != Coord::Cart) {
+      private:
         /**
-         * @brief taking one extra cell in the x2 direction if AXIS BCs
+         * @brief Get the buffer region of the atmosphere and the direction
+         * @param direction direction in which the atmosphere is applied
+         * @return tuple: [sign of the direction, the direction (as in::), the min and max extent
+         * @note xg_min and xg_max are the extents where the fields are set, not the atmosphere itself
+         * @note i.e.
+         *
+         *         fields set      particles injected
+         * ghost zone  |               |
+         *    v        v               v
+         * |....|...........|*******************.....  -> x1
+         * ^                ^
+         * xg_min         xg_max
+         * |                |                  |
+         * |<--  buffer  -->|<-- atmosphere -->|
+         *
+         * in this case the function returns { -1, in::x1, xg_min, xg_max }
          */
-        if constexpr (M::Dim == Dim::_2D) {
-          if (domain.mesh.flds_bc_in({ 0, +1 }) == FldsBC::AXIS) {
-            range = CreateRangePolicy<Dim::_2D>(
-              { domain.mesh.i_min(in::x1), domain.mesh.i_min(in::x2) },
-              { domain.mesh.i_max(in::x1), domain.mesh.i_max(in::x2) + 1 });
+        auto get_atm_extent(dir::direction_t<M::Dim> direction) const
+            -> std::tuple<short, in, real_t, real_t>
+        {
+          const auto sign = direction.get_sign();
+          const auto dim = direction.get_dim();
+          const auto min_buff = m_params.template get<unsigned short>(
+                                    "algorithms.current_filters") +
+                                2;
+          const auto buffer_ncells = min_buff > 5 ? min_buff : 5;
+          if (M::CoordType != Coord::Cart and (dim != in::x1 or sign > 0))
+          {
+            raise::Error("For non-cartesian coordinates atmosphere BCs is "
+                         "possible only in -x1 (@ rmin)",
+                         HERE);
           }
-        } else if constexpr (M::Dim == Dim::_3D) {
-          if (domain.mesh.flds_bc_in({ 0, +1, 0 }) == FldsBC::AXIS) {
-            range = CreateRangePolicy<Dim::_3D>({ domain.mesh.i_min(in::x1),
-                                                  domain.mesh.i_min(in::x2),
-                                                  domain.mesh.i_min(in::x3) },
-                                                { domain.mesh.i_max(in::x1),
-                                                  domain.mesh.i_max(in::x2) + 1,
-                                                  domain.mesh.i_max(in::x3) });
+          real_t xg_min{ZERO}, xg_max{ZERO};
+          std::size_t ig_min, ig_max;
+          if (sign > 0)
+          { // + direction
+            ig_min = m_metadomain.mesh().n_active(dim) - buffer_ncells;
+            ig_max = m_metadomain.mesh().n_active(dim);
           }
+          else
+          { // - direction
+            ig_min = 0;
+            ig_max = buffer_ncells;
+          }
+
+          if (dim == in::x1)
+          {
+            xg_min = m_metadomain.mesh().metric.template convert<1, Crd::Cd, Crd::Ph>(
+                static_cast<real_t>(ig_min));
+            xg_max = m_metadomain.mesh().metric.template convert<1, Crd::Cd, Crd::Ph>(
+                static_cast<real_t>(ig_max));
+          }
+          else if (dim == in::x2)
+          {
+            if constexpr (M::Dim == Dim::_2D or M::Dim == Dim::_3D)
+            {
+              xg_min = m_metadomain.mesh().metric.template convert<2, Crd::Cd, Crd::Ph>(
+                  static_cast<real_t>(ig_min));
+              xg_max = m_metadomain.mesh().metric.template convert<2, Crd::Cd, Crd::Ph>(
+                  static_cast<real_t>(ig_max));
+            }
+            else
+            {
+              raise::Error("Invalid dimension", HERE);
+            }
+          }
+          else if (dim == in::x3)
+          {
+            if constexpr (M::Dim == Dim::_3D)
+            {
+              xg_min = m_metadomain.mesh().metric.template convert<3, Crd::Cd, Crd::Ph>(
+                  static_cast<real_t>(ig_min));
+              xg_max = m_metadomain.mesh().metric.template convert<3, Crd::Cd, Crd::Ph>(
+                  static_cast<real_t>(ig_max));
+            }
+            else
+            {
+              raise::Error("Invalid dimension", HERE);
+            }
+          }
+          else
+          {
+            raise::Error("Invalid dimension", HERE);
+          }
+          return {sign, dim, xg_min, xg_max};
         }
-      }
-      return range;
-    }
-  };
+
+        auto range_with_axis_BCs(const domain_t &domain) -> range_t<M::Dim>
+        {
+          auto range = domain.mesh.rangeActiveCells();
+          if constexpr (M::CoordType != Coord::Cart)
+          {
+            /**
+             * @brief taking one extra cell in the x2 direction if AXIS BCs
+             */
+            if constexpr (M::Dim == Dim::_2D)
+            {
+              if (domain.mesh.flds_bc_in({0, +1}) == FldsBC::AXIS)
+              {
+                range = CreateRangePolicy<Dim::_2D>(
+                    {domain.mesh.i_min(in::x1), domain.mesh.i_min(in::x2)},
+                    {domain.mesh.i_max(in::x1), domain.mesh.i_max(in::x2) + 1});
+              }
+            }
+            else if constexpr (M::Dim == Dim::_3D)
+            {
+              if (domain.mesh.flds_bc_in({0, +1, 0}) == FldsBC::AXIS)
+              {
+                range = CreateRangePolicy<Dim::_3D>({domain.mesh.i_min(in::x1),
+                                                     domain.mesh.i_min(in::x2),
+                                                     domain.mesh.i_min(in::x3)},
+                                                    {domain.mesh.i_max(in::x1),
+                                                     domain.mesh.i_max(in::x2) + 1,
+                                                     domain.mesh.i_max(in::x3)});
+              }
+            }
+          }
+          return range;
+        }
+      };
 
 } // namespace ntt
 

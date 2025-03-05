@@ -106,6 +106,52 @@ namespace user {
       }
     }
 
+    
+    auto PerfectConductorFieldsConst(const bc_in&, const em& comp) const -> real_t{
+
+      // electric field components
+      if (comp == em::ex1) {
+          return ONE;
+      } else if (comp == em::ex2) {
+        return -ONE;
+      } else if (comp == em::ex3) {
+          return -ONE; } 
+      // magentic field components
+      else if (comp == em::bx1) {
+        return -ONE;
+      } else if (comp == em::bx2) {
+        return ONE;
+      } else if (comp == em::bx3) {
+        return ONE;}
+      // should never be the case
+      else
+      {
+          return ZERO;
+      }
+    }
+
+    // auto PerfectConductorCurrentsConst(const bc_in &, const cur &comp) const
+    //     -> std::pair<real_t, bool>
+    // {
+    //     // ToDo
+    //     if (comp == cur::jx1)
+    //     {
+    //         return ZERO;
+    //     }
+    //     else if (comp == cur::jx2)
+    //     {
+    //         return ZERO;
+    //     }
+    //     else if (comp == cur::jx3)
+    //     {
+    //         return ZERO;
+    //     }
+    //     else
+    //     {
+    //         return ZERO;
+    //     }
+    // }
+
     auto MatchFields(real_t time) const -> InitFields<D> {
       return init_flds;
     }

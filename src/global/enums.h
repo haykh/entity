@@ -222,15 +222,16 @@ namespace ntt {
       HORIZON    = 6,
       AXIS       = 7,
       SYNC       = 8, // <- SYNC means synchronization with other domains
+      CONDUCTOR  = 9
     };
 
     constexpr FldsBC(uint8_t c) : enums_hidden::BaseEnum<FldsBC> { c } {}
 
-    static constexpr type variants[] = { PERIODIC, MATCH,   FIXED, ATMOSPHERE,
-                                         CUSTOM,   HORIZON, AXIS,  SYNC };
+    static constexpr type variants[] = { PERIODIC, MATCH,   FIXED, ATMOSPHERE, 
+                                         CUSTOM,   HORIZON, AXIS,  SYNC, CONDUCTOR };
     static constexpr const char* lookup[] = { "periodic",   "match",  "fixed",
                                               "atmosphere", "custom", "horizon",
-                                              "axis",       "sync" };
+                                              "axis",       "sync",   "conductor"};
     static constexpr std::size_t total = sizeof(variants) / sizeof(variants[0]);
   };
 
