@@ -285,7 +285,7 @@ namespace ntt {
 
   //   set_npart(n_alive);
   //   m_is_sorted = true;
-  // }
+  }
 
   template struct Particles<Dim::_1D, Coord::Cart>;
   template struct Particles<Dim::_2D, Coord::Cart>;
