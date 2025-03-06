@@ -218,15 +218,15 @@ namespace ntt {
     array_t<std::size_t*> indices_alive { "indices_alive", n_alive };
     array_t<std::size_t*> alive_counter { "counter_alive", 1 };
 
-  //   Kokkos::parallel_for(
-  //     "AliveIndices",
-  //     rangeActiveParticles(),
-  //     Lambda(index_t p) {
-  //       if (this_tag(p) == ParticleTag::alive) {
-  //         const auto idx     = Kokkos::atomic_fetch_add(&alive_counter(0), 1);
-  //         indices_alive(idx) = p;
-  //       }
-  //     });
+    Kokkos::parallel_for(
+      "AliveIndices",
+      rangeActiveParticles(),
+      Lambda(index_t p) {
+        if (this_tag(p) == ParticleTag::alive) {
+          const auto idx     = Kokkos::atomic_fetch_add(&alive_counter(0), 1);
+          indices_alive(idx) = p;
+        }
+      });
 
   //   {
   //     auto alive_counter_h = Kokkos::create_mirror_view(alive_counter);
