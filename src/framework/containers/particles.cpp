@@ -218,74 +218,74 @@ namespace ntt {
     array_t<std::size_t*> indices_alive { "indices_alive", n_alive };
     array_t<std::size_t*> alive_counter { "counter_alive", 1 };
 
-    Kokkos::parallel_for(
-      "AliveIndices",
-      rangeActiveParticles(),
-      Lambda(index_t p) {
-        if (this_tag(p) == ParticleTag::alive) {
-          const auto idx     = Kokkos::atomic_fetch_add(&alive_counter(0), 1);
-          indices_alive(idx) = p;
-        }
-      });
+  //   Kokkos::parallel_for(
+  //     "AliveIndices",
+  //     rangeActiveParticles(),
+  //     Lambda(index_t p) {
+  //       if (this_tag(p) == ParticleTag::alive) {
+  //         const auto idx     = Kokkos::atomic_fetch_add(&alive_counter(0), 1);
+  //         indices_alive(idx) = p;
+  //       }
+  //     });
 
-    {
-      auto alive_counter_h = Kokkos::create_mirror_view(alive_counter);
-      Kokkos::deep_copy(alive_counter_h, alive_counter);
-      raise::ErrorIf(alive_counter_h(0) != n_alive,
-                     "error in finding alive particle indices",
-                     HERE);
-    }
+  //   {
+  //     auto alive_counter_h = Kokkos::create_mirror_view(alive_counter);
+  //     Kokkos::deep_copy(alive_counter_h, alive_counter);
+  //     raise::ErrorIf(alive_counter_h(0) != n_alive,
+  //                    "error in finding alive particle indices",
+  //                    HERE);
+  //   }
 
-    if constexpr (D == Dim::_1D or D == Dim::_2D or D == Dim::_3D) {
-      RemoveDeadInArray(i1, indices_alive);
-      RemoveDeadInArray(i1_prev, indices_alive);
-      RemoveDeadInArray(dx1, indices_alive);
-      RemoveDeadInArray(dx1_prev, indices_alive);
-    }
+  //   if constexpr (D == Dim::_1D or D == Dim::_2D or D == Dim::_3D) {
+  //     RemoveDeadInArray(i1, indices_alive);
+  //     RemoveDeadInArray(i1_prev, indices_alive);
+  //     RemoveDeadInArray(dx1, indices_alive);
+  //     RemoveDeadInArray(dx1_prev, indices_alive);
+  //   }
 
-    if constexpr (D == Dim::_2D or D == Dim::_3D) {
-      RemoveDeadInArray(i2, indices_alive);
-      RemoveDeadInArray(i2_prev, indices_alive);
-      RemoveDeadInArray(dx2, indices_alive);
-      RemoveDeadInArray(dx2_prev, indices_alive);
-    }
+  //   if constexpr (D == Dim::_2D or D == Dim::_3D) {
+  //     RemoveDeadInArray(i2, indices_alive);
+  //     RemoveDeadInArray(i2_prev, indices_alive);
+  //     RemoveDeadInArray(dx2, indices_alive);
+  //     RemoveDeadInArray(dx2_prev, indices_alive);
+  //   }
 
-    if constexpr (D == Dim::_3D) {
-      RemoveDeadInArray(i3, indices_alive);
-      RemoveDeadInArray(i3_prev, indices_alive);
-      RemoveDeadInArray(dx3, indices_alive);
-      RemoveDeadInArray(dx3_prev, indices_alive);
-    }
+  //   if constexpr (D == Dim::_3D) {
+  //     RemoveDeadInArray(i3, indices_alive);
+  //     RemoveDeadInArray(i3_prev, indices_alive);
+  //     RemoveDeadInArray(dx3, indices_alive);
+  //     RemoveDeadInArray(dx3_prev, indices_alive);
+  //   }
 
-    RemoveDeadInArray(ux1, indices_alive);
-    RemoveDeadInArray(ux2, indices_alive);
-    RemoveDeadInArray(ux3, indices_alive);
-    RemoveDeadInArray(weight, indices_alive);
+  //   RemoveDeadInArray(ux1, indices_alive);
+  //   RemoveDeadInArray(ux2, indices_alive);
+  //   RemoveDeadInArray(ux3, indices_alive);
+  //   RemoveDeadInArray(weight, indices_alive);
 
-    if constexpr (D == Dim::_2D && C != Coord::Cart) {
-      RemoveDeadInArray(phi, indices_alive);
-    }
+  //   if constexpr (D == Dim::_2D && C != Coord::Cart) {
+  //     RemoveDeadInArray(phi, indices_alive);
+  //   }
 
-    if (npld() > 0) {
-      RemoveDeadInArray(pld, indices_alive);
-    }
+  //   if (npld() > 0) {
+  //     RemoveDeadInArray(pld, indices_alive);
+  //   }
 
-    Kokkos::Experimental::fill(
-      "TagAliveParticles",
-      AccelExeSpace(),
-      Kokkos::subview(this_tag,
-                      std::make_pair(static_cast<std::size_t>(0), n_alive)),
-      ParticleTag::alive);
+  //   Kokkos::Experimental::fill(
+  //     "TagAliveParticles",
+  //     AccelExeSpace(),
+  //     Kokkos::subview(this_tag,
+  //                     std::make_pair(static_cast<std::size_t>(0), n_alive)),
+  //     ParticleTag::alive);
 
-    Kokkos::Experimental::fill(
-      "TagDeadParticles",
-      AccelExeSpace(),
-      Kokkos::subview(this_tag, std::make_pair(n_alive, n_alive + n_dead)),
-      ParticleTag::dead);
+  //   Kokkos::Experimental::fill(
+  //     "TagDeadParticles",
+  //     AccelExeSpace(),
+  //     Kokkos::subview(this_tag, std::make_pair(n_alive, n_alive + n_dead)),
+  //     ParticleTag::dead);
 
-    set_npart(n_alive);
-    m_is_sorted = true;
-  }
+  //   set_npart(n_alive);
+  //   m_is_sorted = true;
+  // }
 
   template struct Particles<Dim::_1D, Coord::Cart>;
   template struct Particles<Dim::_2D, Coord::Cart>;
