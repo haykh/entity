@@ -34,7 +34,7 @@
 namespace math = Kokkos;
 
 template <typename T>
-using array_t = Kokkos::View<T, AccelMemSpace>;
+using array_t = Kokkos::View<T>;
 
 // Array mirror alias of arbitrary type
 template <typename T>
@@ -174,17 +174,17 @@ namespace kokkos_aliases_hidden {
 
   template <>
   struct range_impl<Dim::_1D> {
-    using type = Kokkos::RangePolicy<AccelExeSpace>;
+    using type = Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>;
   };
 
   template <>
   struct range_impl<Dim::_2D> {
-    using type = Kokkos::MDRangePolicy<Kokkos::Rank<2>, AccelExeSpace>;
+    using type = Kokkos::MDRangePolicy<Kokkos::Rank<2>, Kokkos::DefaultExecutionSpace>;
   };
 
   template <>
   struct range_impl<Dim::_3D> {
-    using type = Kokkos::MDRangePolicy<Kokkos::Rank<3>, AccelExeSpace>;
+    using type = Kokkos::MDRangePolicy<Kokkos::Rank<3>, Kokkos::DefaultExecutionSpace>;
   };
 } // namespace kokkos_aliases_hidden
 
@@ -201,17 +201,17 @@ namespace kokkos_aliases_hidden {
 
   template <>
   struct range_h_impl<Dim::_1D> {
-    using type = Kokkos::RangePolicy<HostExeSpace>;
+    using type = Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>;
   };
 
   template <>
   struct range_h_impl<Dim::_2D> {
-    using type = Kokkos::MDRangePolicy<Kokkos::Rank<2>, HostExeSpace>;
+    using type = Kokkos::MDRangePolicy<Kokkos::Rank<2>, Kokkos::DefaultHostExecutionSpace>;
   };
 
   template <>
   struct range_h_impl<Dim::_3D> {
-    using type = Kokkos::MDRangePolicy<Kokkos::Rank<3>, HostExeSpace>;
+    using type = Kokkos::MDRangePolicy<Kokkos::Rank<3>, Kokkos::DefaultHostExecutionSpace>;
   };
 
 } // namespace kokkos_aliases_hidden
@@ -242,8 +242,8 @@ auto CreateRangePolicyOnHost(const tuple_t<std::size_t, D>&,
                              const tuple_t<std::size_t, D>&) -> range_h_t<D>;
 
 // Random number pool/generator type alias
-using random_number_pool_t = Kokkos::Random_XorShift1024_Pool<AccelExeSpace>;
-using random_generator_t   = typename random_number_pool_t::generator_type;
+using random_number_pool_t = Kokkos::Random_XorShift1024_Pool<Kokkos::DefaultExecutionSpace>;
+using random_generator_t = typename random_number_pool_t::generator_type;
 
 // Random number generator functions
 template <typename T>

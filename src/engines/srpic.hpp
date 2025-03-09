@@ -596,6 +596,10 @@ namespace ntt {
           if (domain.mesh.flds_bc_in(direction) == FldsBC::FIXED) {
             FixedFieldsIn(direction, domain, tags);
           }
+        } else if (m_metadomain.mesh().flds_bc_in(direction) == FldsBC::CONDUCTOR) {
+          if (domain.mesh.flds_bc_in(direction) == FldsBC::CONDUCTOR) {
+            PerfectConductorFieldsIn(direction, domain, tags);
+          }
         } else if (m_metadomain.mesh().flds_bc_in(direction) == FldsBC::CUSTOM) {
           if (domain.mesh.flds_bc_in(direction) == FldsBC::CUSTOM) {
             CustomFieldsIn(direction, domain, tags);
@@ -831,6 +835,91 @@ namespace ntt {
         }
       } else {
         raise::Error("Fixed fields not present (both const and non-const)", HERE);
+      }
+    }
+
+    void PerfectConductorFieldsIn(dir::direction_t<M::Dim> direction,
+                                  domain_t&                domain,
+                                  BCTags                   tags) {
+      /**
+       * perfect conductor field boundaries
+       */
+      if constexpr (M::CoordType != Coord::Cart) {
+        (void)direction;
+        (void)domain;
+        (void)tags;
+        raise::Error(
+          "Perfect conductor BCs only applicable to cartesian coordinates",
+          HERE);
+      } else {
+        const auto sign = direction.get_sign();
+        const auto dim  = direction.get_dim();
+        raise::ErrorIf(dim != in::x1,
+                       "Perfect conductor BCs only implemented for x1",
+                       HERE);
+
+        std::vector<std::size_t> xi_min, xi_max;
+
+        const std::vector<in> all_dirs { in::x1, in::x2, in::x3 };
+
+        for (unsigned short d { 0 }; d < static_cast<unsigned short>(M::Dim); ++d) {
+          const auto dd = all_dirs[d];
+          if (dim == dd) {
+            xi_min.push_back(0);
+            xi_max.push_back(N_GHOSTS + 1);
+          } else {
+            xi_min.push_back(0);
+            xi_max.push_back(domain.mesh.n_all(dd));
+          }
+        }
+        raise::ErrorIf(xi_min.size() != xi_max.size() or
+                         xi_min.size() != static_cast<std::size_t>(M::Dim),
+                       "Invalid range size",
+                       HERE);
+
+        range_t<M::Dim> range;
+        if constexpr (M::Dim == Dim::_1D) {
+          range = CreateRangePolicy<M::Dim>({ xi_min[0] }, { xi_max[0] });
+        } else if constexpr (M::Dim == Dim::_2D) {
+          range = CreateRangePolicy<M::Dim>({ xi_min[0], xi_min[1] },
+                                            { xi_max[0], xi_max[1] });
+        } else if constexpr (M::Dim == Dim::_3D) {
+          range = CreateRangePolicy<M::Dim>({ xi_min[0], xi_min[1], xi_min[2] },
+                                            { xi_max[0], xi_max[1], xi_max[2] });
+        } else {
+          raise::Error("Invalid dimension", HERE);
+        }
+
+        auto match_fields = m_pgen.MatchFields(time);
+        Kokkos::parallel_for(
+          "ConductorFields",
+          range,
+          kernel::bc::ConductorBoundaries_kernel<M::Dim,decltype(match_fields), in::x1>(domain.fields.em,
+                                                                 match_fields, tags));
+
+        // if constexpr (M::Dim == Dim::_1D) {
+        //   Kokkos::parallel_for(
+        //     "MatchFields",
+        //     CreateRangePolicy<Dim::_1D>({ xi_min[0] }, { xi_max[0] }),
+        //     kernel::bc::ConductorBoundaries_kernel<M::Dim, in::x1>(domain.fields.em,
+        //                                                       tags));
+        // } else if constexpr (M::Dim == Dim::_2D) {
+        //   Kokkos::parallel_for(
+        //     "MatchFields",
+        //     CreateRangePolicy<Dim::_2D>({ xi_min[0], xi_min[1] },
+        //                                 { xi_max[0], xi_max[1] }),
+        //     kernel::bc::ConductorBoundaries_kernel<M::Dim, in::x1>(domain.fields.em,
+        //                                                       tags));
+        // } else if constexpr (M::Dim == Dim::_3D) {
+        //   Kokkos::parallel_for(
+        //     "MatchFields",
+        //     CreateRangePolicy<Dim::_3D>({ xi_min[0], xi_min[1], xi_min[2] },
+        //                                 { xi_max[0], xi_max[1], xi_max[2] }),
+        //     kernel::bc::ConductorBoundaries_kernel<M::Dim, in::x1>(domain.fields.em,
+        //                                                       tags));
+        // } else {
+        //   raise::Error("Invalid dimension", HERE);
+        // }
       }
     }
 

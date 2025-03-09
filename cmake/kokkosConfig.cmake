@@ -37,41 +37,6 @@ set(Kokkos_ENABLE_OPENMP
     ${default_KOKKOS_ENABLE_OPENMP}
     CACHE BOOL "Enable OpenMP")
 
-# set memory space
-if(${Kokkos_ENABLE_CUDA})
-  add_compile_definitions(CUDA_ENABLED)
-  set(ACC_MEM_SPACE Kokkos::CudaSpace)
-elseif(${Kokkos_ENABLE_HIP})
-  add_compile_definitions(HIP_ENABLED)
-  set(ACC_MEM_SPACE Kokkos::HIPSpace)
-else()
-  set(ACC_MEM_SPACE Kokkos::HostSpace)
-endif()
-
-set(HOST_MEM_SPACE Kokkos::HostSpace)
-
-# set execution space
-if(${Kokkos_ENABLE_CUDA})
-  set(ACC_EXE_SPACE Kokkos::Cuda)
-elseif(${Kokkos_ENABLE_HIP})
-  set(ACC_EXE_SPACE Kokkos::HIP)
-elseif(${Kokkos_ENABLE_OPENMP})
-  set(ACC_EXE_SPACE Kokkos::OpenMP)
-else()
-  set(ACC_EXE_SPACE Kokkos::Serial)
-endif()
-
-if(${Kokkos_ENABLE_OPENMP})
-  set(HOST_EXE_SPACE Kokkos::OpenMP)
-else()
-  set(HOST_EXE_SPACE Kokkos::Serial)
-endif()
-
-add_compile_options("-D AccelExeSpace=${ACC_EXE_SPACE}")
-add_compile_options("-D AccelMemSpace=${ACC_MEM_SPACE}")
-add_compile_options("-D HostExeSpace=${HOST_EXE_SPACE}")
-add_compile_options("-D HostMemSpace=${HOST_MEM_SPACE}")
-
 if(${BUILD_TESTING} STREQUAL "OFF")
   set(Kokkos_ENABLE_TESTS
       OFF

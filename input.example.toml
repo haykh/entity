@@ -90,7 +90,7 @@
     # Boundary conditions for fields:
     #   @required
     #   @type: 1/2/3-size array of string tuples, each of size 1 or 2
-    #   @valid: "PERIODIC", "MATCH", "FIXED", "ATMOSPHERE", "CUSTOM", "HORIZON"
+    #   @valid: "PERIODIC", "MATCH", "FIXED", "ATMOSPHERE", "CUSTOM", "HORIZON", "CONDUCTOR"
     #   @example: [["CUSTOM", "MATCH"]] (for 2D spherical [[rmin, rmax]])
     #   @note: When periodic in any of the directions, you should only set one value: [..., ["PERIODIC"], ...]
     #   @note: In spherical, bondaries in theta/phi are set automatically (only specify bc @ [rmin, rmax]): [["ATMOSPHERE", "MATCH"]]
