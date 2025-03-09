@@ -14,6 +14,7 @@
 #ifndef GLOBAL_ARCH_MPI_ALIASES_H
 #define GLOBAL_ARCH_MPI_ALIASES_H
 
+#include <cstdint>
 #include <utility>
 
 #if defined(MPI_ENABLED)

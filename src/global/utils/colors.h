@@ -53,7 +53,8 @@ namespace color {
     return msg_nocol;
   }
 
-  inline auto get_color(const std::string& s, bool eight_bit) -> std::string {
+  inline auto get_color(const std::string& s, bool eight_bit = true)
+    -> std::string {
     if (not eight_bit) {
       return "";
     } else {

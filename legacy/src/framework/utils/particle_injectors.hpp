@@ -165,7 +165,7 @@ namespace ntt {
    * @brief Volumetrically uniform particle injector parallelized over particles.
    * @tparam D dimension.
    * @tparam S simulation engine.
-   * @tparam EnDist energy distribution [default = ColdDist].
+   * @tparam EnDist energy distribution [default = Cold].
    *
    * @param params simulation parameters.
    * @param mblock meshblock.
@@ -174,7 +174,7 @@ namespace ntt {
    * @param region region to inject particles as a list of coordinates [optional].
    * @param time current time [optional].
    */
-  template <Dimension D, SimulationEngine S, template <Dimension, SimulationEngine> class EnDist = ColdDist>
+  template <Dimension D, SimulationEngine S, template <Dimension, SimulationEngine> class EnDist = Cold>
   inline void InjectUniform(const SimulationParams& params,
                             Meshblock<D, S>&        mblock,
                             const std::vector<int>& species,
@@ -613,8 +613,8 @@ namespace ntt {
    * @brief Particle injector parallelized by cells in a volume.
    * @tparam D dimension.
    * @tparam S simulation engine.
-   * @tparam EnDist energy distribution [default = ColdDist].
-   * @tparam SpDist spatial distribution [default = UniformDist].
+   * @tparam EnDist energy distribution [default = Cold].
+   * @tparam SpDist spatial distribution [default = Uniform].
    * @tparam InjCrit injection criterion [default = NoCriterion].
    *
    * @param params simulation parameters.
@@ -626,8 +626,8 @@ namespace ntt {
    */
   template <Dimension        D,
             SimulationEngine S,
-            template <Dimension, SimulationEngine> class EnDist  = ColdDist,
-            template <Dimension, SimulationEngine> class SpDist  = UniformDist,
+            template <Dimension, SimulationEngine> class EnDist  = Cold,
+            template <Dimension, SimulationEngine> class SpDist  = Uniform,
             template <Dimension, SimulationEngine> class InjCrit = NoCriterion>
   inline void InjectInVolume(const SimulationParams& params,
                              Meshblock<D, S>&        mblock,
@@ -928,7 +928,7 @@ namespace ntt {
    * @brief ... up to certain number density.
    * @tparam D dimension.
    * @tparam S simulation engine.
-   * @tparam EnDist energy distribution [default = ColdDist].
+   * @tparam EnDist energy distribution [default = Cold].
    * @tparam InjCrit injection criterion [default = NoCriterion].
    *
    * @param params simulation parameters.
@@ -940,7 +940,7 @@ namespace ntt {
    */
   template <Dimension        D,
             SimulationEngine S,
-            template <Dimension, SimulationEngine> class EnDist  = ColdDist,
+            template <Dimension, SimulationEngine> class EnDist  = Cold,
             template <Dimension, SimulationEngine> class InjCrit = NoCriterion>
   inline void InjectNonUniform(const SimulationParams&      params,
                                Meshblock<D, S>&             mblock,

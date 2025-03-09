@@ -1,26 +1,39 @@
 name: Unit tests
 
 on:
-  pull_request:
-    branches:
-      - '**rc'
-      - 'master'
+  push:
 
 jobs:
+  check-commit:
+    runs-on: ubuntu-latest
+    outputs:
+      run_tests: ${{ steps.check_message.outputs.run_tests }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Check commit message
+        id: check_message
+        run: |
+          if git log -1 --pretty=%B | grep -q "RUNTEST"; then
+            echo "run_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_tests=false" >> "$GITHUB_OUTPUT"
+          fi
   tests:
+    needs: check-commit
+    if: needs.check-commit.outputs.run_tests == 'true'
     strategy:
       fail-fast: false
       matrix:
-        device: [amd-gpu, nvidia-gpu]
+        device: [cpu, amd-gpu, nvidia-gpu]
         precision: [double, single]
-        exclude: 
+        exclude: # my AMD GPU doesn't support fp64 atomics : (
         - device: amd-gpu 
           precision: double
-        # my AMD GPUs doesn't support fp64 atomics : (
     runs-on: [self-hosted, "${{ matrix.device }}"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4
       - name: Configure
         run: |
           if [ "${{ matrix.device }}" = "nvidia-gpu" ]; then
@@ -34,6 +47,8 @@ jobs:
             fi
           elif [ "${{ matrix.device }}" = "amd-gpu" ]; then
             FLAGS="-D Kokkos_ENABLE_HIP=ON -D Kokkos_ARCH_AMD_GFX1100=ON"
+          elif [ "${{ matrix.device }}" = "cpu" ]; then
+            FLAGS="-D mpi=ON"
           fi
           cmake -B build -D TESTS=ON -D output=ON -D precision=${{ matrix.precision }} $FLAGS
       - name: Compile

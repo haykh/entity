@@ -91,4 +91,8 @@ namespace constant {
   inline constexpr double        SQRT3      = 1.73205080756887729352;
 } // namespace constant
 
+namespace convert {
+  inline constexpr double deg2rad = constant::PI / 180.0;
+} // namespace convert
+
 #endif // GLOBAL_UTILS_NUMERIC_H

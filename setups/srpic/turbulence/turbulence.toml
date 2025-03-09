@@ -1,21 +1,21 @@
 [simulation]
-  name = "turbulence"
-  engine = "srpic"
+  name    = "turbulence"
+  engine  = "srpic"
   runtime = 20.0
 
 [grid]
   resolution = [184, 184, 184]
-  extent = [[-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]]
+  extent     = [[-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]]
 
   [grid.metric]
     metric = "minkowski"
 
   [grid.boundaries]
-    fields = [["PERIODIC"], ["PERIODIC"], ["PERIODIC"]]
+    fields    = [["PERIODIC"], ["PERIODIC"], ["PERIODIC"]]
     particles = [["PERIODIC"], ["PERIODIC"], ["PERIODIC"]]
-    
+
 [scales]
-  larmor0 = 0.02
+  larmor0    = 0.02
   skindepth0 = 0.02
 
 [algorithms]
@@ -28,22 +28,22 @@
   ppc0 = 32.0
 
   [[particles.species]]
-  label = "e-"
-  mass = 1.0
-  charge = -1.0
-  maxnpart = 1e8
+    label    = "e-"
+    mass     = 1.0
+    charge   = -1.0
+    maxnpart = 1e8
 
   [[particles.species]]
-  label = "e+"
-  mass = 1.0
-  charge = 1.0
-  maxnpart = 1e8
+    label    = "e+"
+    mass     = 1.0
+    charge   = 1.0
+    maxnpart = 1e8
 
 [setup]
-  
+
 [output]
-  format = "hdf5"
+  format        = "hdf5"
   interval_time = 0.1
-  
+
   [output.fields]
     quantities = ["N_1", "N_2", "E", "B", "J", "T00_1", "T00_2"]

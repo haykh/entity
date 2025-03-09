@@ -201,9 +201,9 @@ void testPeriodicBC(const std::vector<std::size_t>&      res,
   // Particle boundaries
   auto boundaries = boundaries_t<PrtlBC> {};
   boundaries      = {
-    {PrtlBC::PERIODIC, PrtlBC::PERIODIC},
-    {PrtlBC::PERIODIC, PrtlBC::PERIODIC},
-    {PrtlBC::PERIODIC, PrtlBC::PERIODIC}
+    { PrtlBC::PERIODIC, PrtlBC::PERIODIC },
+    { PrtlBC::PERIODIC, PrtlBC::PERIODIC },
+    { PrtlBC::PERIODIC, PrtlBC::PERIODIC }
   };
 
   real_t     time   = ZERO;
@@ -343,18 +343,18 @@ auto main(int argc, char* argv[]) -> int {
 
     const std::vector<std::size_t> res1d { 50 };
     const boundaries_t<real_t>     ext1d {
-          {0.0, 1000.0},
+          { 0.0, 1000.0 },
     };
     const std::vector<std::size_t> res2d { 30, 20 };
     const boundaries_t<real_t>     ext2d {
-          {-15.0, 15.0},
-          {-10.0, 10.0},
+          { -15.0, 15.0 },
+          { -10.0, 10.0 },
     };
     const std::vector<std::size_t> res3d { 10, 10, 10 };
     const boundaries_t<real_t>     ext3d {
-          {0.0, 1.0},
-          {0.0, 1.0},
-          {0.0, 1.0}
+          { 0.0, 1.0 },
+          { 0.0, 1.0 },
+          { 0.0, 1.0 }
     };
     testPeriodicBC<SimEngine::SRPIC, Minkowski<Dim::_1D>>(res1d, ext1d, {});
     testPeriodicBC<SimEngine::SRPIC, Minkowski<Dim::_2D>>(res2d, ext2d, {});

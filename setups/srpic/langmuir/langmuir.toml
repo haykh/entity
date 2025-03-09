@@ -1,21 +1,21 @@
 [simulation]
-  name = "langmuir"
-  engine = "srpic"
+  name    = "langmuir"
+  engine  = "srpic"
   runtime = 1.0
 
 [grid]
   resolution = [2048, 512]
-  extent = [[0.0, 1.0], [0.0, 0.25]]
+  extent     = [[0.0, 1.0], [0.0, 0.25]]
 
   [grid.metric]
     metric = "minkowski"
 
   [grid.boundaries]
-    fields = [["PERIODIC"], ["PERIODIC"]]
+    fields    = [["PERIODIC"], ["PERIODIC"]]
     particles = [["PERIODIC"], ["PERIODIC"]]
-    
+
 [scales]
-  larmor0 = 0.1
+  larmor0    = 0.1
   skindepth0 = 0.01
 
 [algorithms]
@@ -28,24 +28,24 @@
   ppc0 = 14.0
 
   [[particles.species]]
-  label = "e-"
-  mass = 1.0
-  charge = -1.0
-  maxnpart = 1e7
+    label    = "e-"
+    mass     = 1.0
+    charge   = -1.0
+    maxnpart = 1e7
 
   [[particles.species]]
-  label = "e+"
-  mass = 1.0
-  charge = 1.0
-  maxnpart = 1e7
+    label    = "e+"
+    mass     = 1.0
+    charge   = 1.0
+    maxnpart = 1e7
 
 [setup]
   vmax = 0.1
-  nx1 = 4
-  nx2 = 2
-  
+  nx1  = 4
+  nx2  = 2
+
 [output]
-  format = "hdf5"
+  format        = "hdf5"
   interval_time = 0.0025
 
   [output.fields]

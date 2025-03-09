@@ -2,20 +2,24 @@
  * @file utils/tools.h
  * @brief Helper functions for general use
  * @implements
+ *   - tools::ArrayImbalance -> unsigned short
  *   - tools::TensorProduct<> -> boundaries_t<T>
  *   - tools::decompose1D -> std::vector<std::size_t>
  *   - tools::divideInProportions2D -> std::tuple<unsigned int, unsigned int>
  *   - tools::divideInProportions3D -> std::tuple<unsigned int, unsigned int, unsigned int>
  *   - tools::Decompose -> std::vector<std::vector<std::size_t>>
+ *   - tools::Tracker
  * @namespaces:
  *   - tools::
  */
 
-#ifndef UTILS_HELPERS_H
-#define UTILS_HELPERS_H
+#ifndef UTILS_TOOLS_H
+#define UTILS_TOOLS_H
 
 #include "global.h"
 
+#include "arch/kokkos_aliases.h"
+#include "utils/comparators.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
 
@@ -25,6 +29,30 @@
 #include <vector>
 
 namespace tools {
+
+  /**
+   * @brief Compute the imbalance of a list of nonnegative values
+   * @param values List of values
+   * @return Imbalance of the list (0...100)
+   */
+  template <typename T>
+  auto ArrayImbalance(const std::vector<T>& values) -> unsigned short {
+    raise::ErrorIf(values.empty(), "Disbalance error: value array is empty", HERE);
+    const auto mean = static_cast<double>(std::accumulate(values.begin(),
+                                                          values.end(),
+                                                          static_cast<T>(0))) /
+                      static_cast<double>(values.size());
+    const auto sq_sum = static_cast<double>(std::inner_product(values.begin(),
+                                                               values.end(),
+                                                               values.begin(),
+                                                               static_cast<T>(0)));
+    if (cmp::AlmostZero_host(sq_sum) || cmp::AlmostZero_host(mean)) {
+      return 0;
+    }
+    const auto cv = std::sqrt(
+      sq_sum / static_cast<double>(values.size()) / mean - 1.0);
+    return static_cast<unsigned short>(100.0 / (1.0 + math::exp(-cv)));
+  }
 
   /**
    * @brief Compute a tensor product of a list of vectors
@@ -227,7 +255,7 @@ namespace tools {
         raise::ErrorIf(ndomains % n1 != 0,
                        "Decomposition error: does not divide evenly",
                        HERE);
-        std::tie(n2, 
+        std::tie(n2,
                  n3) = divideInProportions2D(ndomains / n1, ncells[1], ncells[2]);
       } else if (decomposition[0] < 0 && decomposition[1] < 0 &&
                  decomposition[2] < 0) {
@@ -245,6 +273,54 @@ namespace tools {
     }
   }
 
+  class Tracker {
+    bool m_initialized { false };
+
+    std::string m_type;
+    std::size_t m_interval;
+    long double m_interval_time;
+    bool        m_use_time;
+
+    long double m_last_output_time { -1.0 };
+
+  public:
+    Tracker() = default;
+
+    Tracker(const std::string& type, std::size_t interval, long double interval_time)
+      : m_initialized { true }
+      , m_type { type }
+      , m_interval { interval }
+      , m_interval_time { interval_time }
+      , m_use_time { interval_time > 0.0 } {}
+
+    ~Tracker() = default;
+
+    void init(const std::string& type,
+              std::size_t        interval,
+              long double        interval_time) {
+      m_type          = type;
+      m_interval      = interval;
+      m_interval_time = interval_time;
+      m_use_time      = interval_time > 0.0;
+      m_initialized   = true;
+    }
+
+    auto shouldWrite(std::size_t step, long double time) -> bool {
+      raise::ErrorIf(!m_initialized, "Tracker not initialized", HERE);
+      if (m_use_time) {
+        if ((m_last_output_time < 0) or
+            (time - m_last_output_time >= m_interval_time)) {
+          m_last_output_time = time;
+          return true;
+        } else {
+          return false;
+        }
+      } else {
+        return step % m_interval == 0;
+      }
+    }
+  };
+
 } // namespace tools
 
-#endif // UTILS_HELPERS_H
+#endif // UTILS_TOOLS_H

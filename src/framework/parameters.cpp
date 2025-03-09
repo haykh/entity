@@ -8,6 +8,7 @@
 #include "utils/formatting.h"
 #include "utils/log.h"
 #include "utils/numeric.h"
+#include "utils/toml.h"
 
 #include "metrics/kerr_schild.h"
 #include "metrics/kerr_schild_0.h"
@@ -17,8 +18,6 @@
 #include "metrics/spherical.h"
 
 #include "framework/containers/species.h"
-
-#include <toml.hpp>
 
 #if defined(MPI_ENABLED)
   #include <mpi.h>
@@ -32,10 +31,10 @@
 namespace ntt {
 
   template <typename M>
-  auto get_dx0_V0(const std::vector<std::size_t>&      resolution,
-                  const boundaries_t<real_t>&          extent,
-                  const std::map<std::string, real_t>& params)
-    -> std::pair<real_t, real_t> {
+  auto get_dx0_V0(
+    const std::vector<std::size_t>&      resolution,
+    const boundaries_t<real_t>&          extent,
+    const std::map<std::string, real_t>& params) -> std::pair<real_t, real_t> {
     const auto      metric = M(resolution, extent, params);
     const auto      dx0    = metric.dxMin();
     coord_t<M::Dim> x_corner { ZERO };
@@ -46,15 +45,15 @@ namespace ntt {
     return { dx0, V0 };
   }
 
-  SimulationParams::SimulationParams(const toml::value& raw_data) {
+  /*
+   * . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+   * Parameters that must not be changed during the checkpoint restart
+   * . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+   */
+  void SimulationParams::setImmutableParams(const toml::value& toml_data) {
     /* [simulation] --------------------------------------------------------- */
-    set("simulation.name", toml::find<std::string>(raw_data, "simulation", "name"));
-    set("simulation.runtime",
-        toml::find<long double>(raw_data, "simulation", "runtime"));
-
-    const auto engine = fmt::toLower(
-      toml::find<std::string>(raw_data, "simulation", "engine"));
-    const auto engine_enum = SimEngine::pick(engine.c_str());
+    const auto engine_enum = SimEngine::pick(
+      fmt::toLower(toml::find<std::string>(toml_data, "simulation", "engine")).c_str());
     set("simulation.engine", engine_enum);
 
     int default_ndomains = 1;
@@ -63,7 +62,7 @@ namespace ntt {
                    "MPI_Comm_size failed",
                    HERE);
 #endif
-    const auto ndoms = toml::find_or(raw_data,
+    const auto ndoms = toml::find_or(toml_data,
                                      "simulation",
                                      "domain",
                                      "number",
@@ -71,7 +70,7 @@ namespace ntt {
     set("simulation.domain.number", (unsigned int)ndoms);
 
     auto decomposition = toml::find_or<std::vector<int>>(
-      raw_data,
+      toml_data,
       "simulation",
       "domain",
       "decomposition",
@@ -79,7 +78,7 @@ namespace ntt {
     promiseToDefine("simulation.domain.decomposition");
 
     /* [grid] --------------------------------------------------------------- */
-    const auto res = toml::find<std::vector<std::size_t>>(raw_data,
+    const auto res = toml::find<std::vector<std::size_t>>(toml_data,
                                                           "grid",
                                                           "resolution");
     raise::ErrorIf(res.size() < 1 || res.size() > 3,
@@ -98,7 +97,7 @@ namespace ntt {
                    HERE);
     set("simulation.domain.decomposition", decomposition);
 
-    auto extent = toml::find<std::vector<std::vector<real_t>>>(raw_data,
+    auto extent = toml::find<std::vector<std::vector<real_t>>>(toml_data,
                                                                "grid",
                                                                "extent");
     raise::ErrorIf(extent.size() < 1 || extent.size() > 3,
@@ -107,17 +106,18 @@ namespace ntt {
     promiseToDefine("grid.extent");
 
     /* [grid.metric] -------------------------------------------------------- */
-    const auto metric = fmt::toLower(
-      toml::find<std::string>(raw_data, "grid", "metric", "metric"));
-    const auto metric_enum = Metric::pick(metric.c_str());
+    const auto metric_enum = Metric::pick(
+      fmt::toLower(toml::find<std::string>(toml_data, "grid", "metric", "metric"))
+        .c_str());
     promiseToDefine("grid.metric.metric");
     std::string coord;
-    if (metric == "minkowski") {
+    if (metric_enum == Metric::Minkowski) {
       raise::ErrorIf(engine_enum != SimEngine::SRPIC,
                      "minkowski metric is only supported for SRPIC",
                      HERE);
       coord = "cart";
-    } else if (metric[0] == 'q') {
+    } else if (metric_enum == Metric::QKerr_Schild or
+               metric_enum == Metric::QSpherical) {
       // quasi-spherical geometry
       raise::ErrorIf(dim == Dim::_1D,
                      "not enough dimensions for qspherical geometry",
@@ -127,9 +127,9 @@ namespace ntt {
                      HERE);
       coord = "qsph";
       set("grid.metric.qsph_r0",
-          toml::find_or(raw_data, "grid", "metric", "qsph_r0", defaults::qsph::r0));
+          toml::find_or(toml_data, "grid", "metric", "qsph_r0", defaults::qsph::r0));
       set("grid.metric.qsph_h",
-          toml::find_or(raw_data, "grid", "metric", "qsph_h", defaults::qsph::h));
+          toml::find_or(toml_data, "grid", "metric", "qsph_h", defaults::qsph::h));
     } else {
       // spherical geometry
       raise::ErrorIf(dim == Dim::_1D,
@@ -142,7 +142,7 @@ namespace ntt {
     }
     if ((engine_enum == SimEngine::GRPIC) &&
         (metric_enum != Metric::Kerr_Schild_0)) {
-      const auto ks_a = toml::find_or(raw_data,
+      const auto ks_a = toml::find_or(toml_data,
                                       "grid",
                                       "metric",
                                       "ks_a",
@@ -153,76 +153,9 @@ namespace ntt {
     const auto coord_enum = Coord::pick(coord.c_str());
     set("grid.metric.coord", coord_enum);
 
-    /* [grid.boundaraies] --------------------------------------------------- */
-    auto flds_bc = toml::find<std::vector<std::vector<std::string>>>(
-      raw_data,
-      "grid",
-      "boundaries",
-      "fields");
-    {
-      raise::ErrorIf(flds_bc.size() < 1 || flds_bc.size() > 3,
-                     "invalid `grid.boundaries.fields`",
-                     HERE);
-      promiseToDefine("grid.boundaries.fields");
-      auto atm_defined = false;
-      for (const auto& bcs : flds_bc) {
-        for (const auto& bc : bcs) {
-          if (fmt::toLower(bc) == "absorb") {
-            promiseToDefine("grid.boundaries.absorb.ds");
-            promiseToDefine("grid.boundaries.absorb.coeff");
-          }
-          if (fmt::toLower(bc) == "atmosphere") {
-            raise::ErrorIf(atm_defined,
-                           "ATMOSPHERE is only allowed in one direction",
-                           HERE);
-            atm_defined = true;
-            promiseToDefine("grid.boundaries.atmosphere.temperature");
-            promiseToDefine("grid.boundaries.atmosphere.density");
-            promiseToDefine("grid.boundaries.atmosphere.height");
-            promiseToDefine("grid.boundaries.atmosphere.ds");
-            promiseToDefine("grid.boundaries.atmosphere.species");
-            promiseToDefine("grid.boundaries.atmosphere.g");
-          }
-        }
-      }
-    }
-
-    auto prtl_bc = toml::find<std::vector<std::vector<std::string>>>(
-      raw_data,
-      "grid",
-      "boundaries",
-      "particles");
-    {
-      raise::ErrorIf(prtl_bc.size() < 1 || prtl_bc.size() > 3,
-                     "invalid `grid.boundaries.particles`",
-                     HERE);
-      promiseToDefine("grid.boundaries.particles");
-      auto atm_defined = false;
-      for (const auto& bcs : prtl_bc) {
-        for (const auto& bc : bcs) {
-          if (fmt::toLower(bc) == "absorb") {
-            promiseToDefine("grid.boundaries.absorb.ds");
-            promiseToDefine("grid.boundaries.absorb.coeff");
-          }
-          if (fmt::toLower(bc) == "atmosphere") {
-            raise::ErrorIf(atm_defined,
-                           "ATMOSPHERE is only allowed in one direction",
-                           HERE);
-            atm_defined = true;
-            promiseToDefine("grid.boundaries.atmosphere.temperature");
-            promiseToDefine("grid.boundaries.atmosphere.density");
-            promiseToDefine("grid.boundaries.atmosphere.height");
-            promiseToDefine("grid.boundaries.atmosphere.ds");
-            promiseToDefine("grid.boundaries.atmosphere.species");
-            promiseToDefine("grid.boundaries.atmosphere.g");
-          }
-        }
-      }
-    }
-
     /* [scales] ------------------------------------------------------------- */
-    const auto larmor0 = toml::find<real_t>(raw_data, "scales", "larmor0");
-    const auto skindepth0 = toml::find<real_t>(raw_data, "scales", "skindepth0");
+    const auto larmor0 = toml::find<real_t>(toml_data, "scales", "larmor0");
+    const auto skindepth0 = toml::find<real_t>(toml_data, "scales", "skindepth0");
     raise::ErrorIf(larmor0 <= ZERO || skindepth0 <= ZERO,
                    "larmor0 and skindepth0 must be positive",
                    HERE);
@@ -236,66 +169,16 @@ namespace ntt {
     set("scales.B0", ONE / larmor0);
     set("scales.omegaB0", ONE / larmor0);
 
-    /* [algorithms] --------------------------------------------------------- */
-    set("algorithms.current_filters",
-        toml::find_or(raw_data,
-                      "algorithms",
-                      "current_filters",
-                      defaults::current_filters));
-
-    /* [algorithms.toggles] ------------------------------------------------- */
-    set("algorithms.toggles.fieldsolver",
-        toml::find_or(raw_data, "algorithms", "toggles", "fieldsolver", true));
-    set("algorithms.toggles.deposit",
-        toml::find_or(raw_data, "algorithms", "toggles", "deposit", true));
-
-    /* [algorithms.timestep] ------------------------------------------------ */
-    set("algorithms.timestep.CFL",
-        toml::find_or(raw_data, "algorithms", "timestep", "CFL", defaults::cfl));
-    promiseToDefine("algorithms.timestep.dt");
-    set("algorithms.timestep.correction",
-        toml::find_or(raw_data,
-                      "algorithms",
-                      "timestep",
-                      "correction",
-                      defaults::correction));
-
-    /* [algorithms.gr] ------------------------------------------------------ */
-    if (engine_enum == SimEngine::GRPIC) {
-      set("algorithms.gr.pusher_eps",
-          toml::find_or(raw_data,
-                        "algorithms",
-                        "gr",
-                        "pusher_eps",
-                        defaults::gr::pusher_eps));
-      set("algorithms.gr.pusher_niter",
-          toml::find_or(raw_data,
-                        "algorithms",
-                        "gr",
-                        "pusher_niter",
-                        defaults::gr::pusher_niter));
-    }
-
     /* [particles] ---------------------------------------------------------- */
-    const auto ppc0 = toml::find<real_t>(raw_data, "particles", "ppc0");
+    const auto ppc0 = toml::find<real_t>(toml_data, "particles", "ppc0");
     set("particles.ppc0", ppc0);
     raise::ErrorIf(ppc0 <= 0.0, "ppc0 must be positive", HERE);
     set("particles.use_weights",
-        toml::find_or(raw_data, "particles", "use_weights", false));
-
-#if defined(MPI_ENABLED)
-    const std::size_t sort_interval = 1;
-#else
-    const std::size_t sort_interval = toml::find_or(raw_data,
-                                                    "particles",
-                                                    "sort_interval",
-                                                    defaults::sort_interval);
-#endif
-    set("particles.sort_interval", sort_interval);
+        toml::find_or(toml_data, "particles", "use_weights", false));
 
     /* [particles.species] -------------------------------------------------- */
     std::vector<ParticleSpecies> species;
-    const auto species_tab = toml::find_or<toml::array>(raw_data,
+    const auto species_tab = toml::find_or<toml::array>(toml_data,
                                                         "particles",
                                                         "species",
                                                         toml::array {});
@@ -365,120 +248,6 @@ namespace ntt {
     }
     set("particles.species", species);
 
-    /* [output] ------------------------------------------------------------- */
-    // fields
-    set("output.format",
-        toml::find_or(raw_data, "output", "format", defaults::output::format));
-    set("output.interval",
-        toml::find_or(raw_data, "output", "interval", defaults::output::interval));
-    set("output.interval_time",
-        toml::find_or<long double>(raw_data, "output", "interval_time", -1.0));
-    promiseToDefine("output.fields.interval");
-    promiseToDefine("output.fields.interval_time");
-    promiseToDefine("output.fields.enable");
-    promiseToDefine("output.particles.interval");
-    promiseToDefine("output.particles.interval_time");
-    promiseToDefine("output.particles.enable");
-    promiseToDefine("output.spectra.interval");
-    promiseToDefine("output.spectra.interval_time");
-    promiseToDefine("output.spectra.enable");
-
-    const auto flds_out        = toml::find_or(raw_data,
-                                        "output",
-                                        "fields",
-                                        "quantities",
-                                        std::vector<std::string> {});
-    const auto custom_flds_out = toml::find_or(raw_data,
-                                               "output",
-                                               "fields",
-                                               "custom",
-                                               std::vector<std::string> {});
-    if (flds_out.size() == 0) {
-      raise::Warning("No fields output specified", HERE);
-    }
-    set("output.fields.quantities", flds_out);
-    set("output.fields.custom", custom_flds_out);
-    set("output.fields.mom_smooth",
-        toml::find_or(raw_data,
-                      "output",
-                      "fields",
-                      "mom_smooth",
-                      defaults::output::mom_smooth));
-    set("output.fields.stride",
-        toml::find_or(raw_data, "output", "fields", "stride", defaults::output::flds_stride));
-
-    // particles
-    auto prtl_out = toml::find_or(raw_data,
-                                  "output",
-                                  "particles",
-                                  "species",
-                                  std::vector<unsigned short> {});
-    if (prtl_out.size() == 0) {
-      for (unsigned short i = 0; i < species.size(); ++i) {
-        prtl_out.push_back(i + 1);
-      }
-    }
-    set("output.particles.species", prtl_out);
-    set("output.particles.stride",
-        toml::find_or(raw_data,
-                      "output",
-                      "particles",
-                      "stride",
-                      defaults::output::prtl_stride));
-
-    // spectra
-    set("output.spectra.e_min",
-        toml::find_or(raw_data, "output", "spectra", "e_min", defaults::output::spec_emin));
-    set("output.spectra.e_max",
-        toml::find_or(raw_data, "output", "spectra", "e_max", defaults::output::spec_emax));
-    set("output.spectra.log_bins",
-        toml::find_or(raw_data,
-                      "output",
-                      "spectra",
-                      "log_bins",
-                      defaults::output::spec_log));
-    set("output.spectra.n_bins",
-        toml::find_or(raw_data, "output", "spectra", "n_bins", defaults::output::spec_nbins));
-
-    // intervals
-    for (const auto& type : { "fields", "particles", "spectra" }) {
-      const auto q_int      = toml::find_or<std::size_t>(raw_data,
-                                                    "output",
-                                                    std::string(type),
-                                                    "interval",
-                                                    0);
-      const auto q_int_time = toml::find_or<long double>(raw_data,
-                                                         "output",
-                                                         std::string(type),
-                                                         "interval_time",
-                                                         -1.0);
-      set("output." + std::string(type) + ".enable",
-          toml::find_or(raw_data, "output", std::string(type), "enable", true));
-      if (q_int == 0 && q_int_time == -1.0) {
-        set("output." + std::string(type) + ".interval",
-            get<std::size_t>("output.interval"));
-        set("output." + std::string(type) + ".interval_time",
-            get<long double>("output.interval_time"));
-      } else {
-        set("output." + std::string(type) + ".interval", q_int);
-        set("output." + std::string(type) + ".interval_time", q_int_time);
-      }
-    }
-
-    /* [output.debug] ------------------------------------------------------- */
-    set("output.debug.as_is",
-        toml::find_or(raw_data, "output", "debug", "as_is", false));
-    set("output.debug.ghosts",
-        toml::find_or(raw_data, "output", "debug", "ghosts", false));
-
-    /* [diagnostics] -------------------------------------------------------- */
-    set("diagnostics.interval",
-        toml::find_or(raw_data, "diagnostics", "interval", defaults::diag::interval));
-    set("diagnostics.blocking_timers",
-        toml::find_or(raw_data, "diagnostics", "blocking_timers", false));
-    set("diagnostics.colored_stdout",
-        toml::find_or(raw_data, "diagnostics", "colored_stdout", false));
-
     /* inferred variables --------------------------------------------------- */
     // extent
     if (extent.size() > dim) {
@@ -495,15 +264,345 @@ namespace ntt {
       }
     }
     raise::ErrorIf(extent.size() != dim, "invalid inferred `grid.extent`", HERE);
-    boundaries_t<real_t> extent_parwise;
+    boundaries_t<real_t> extent_pairwise;
     for (unsigned short d = 0; d < (unsigned short)dim; ++d) {
       raise::ErrorIf(extent[d].size() != 2,
                      fmt::format("invalid inferred `grid.extent[%d]`", d),
                      HERE);
-      extent_parwise.push_back({ extent[d][0], extent[d][1] });
+      extent_pairwise.push_back({ extent[d][0], extent[d][1] });
     }
-    set("grid.extent", extent_parwise);
+    set("grid.extent", extent_pairwise);
 
+    // metric, dx0, V0, n0, q0
+    {
+      boundaries_t<real_t> ext;
+      for (const auto& e : extent) {
+        ext.push_back({ e[0], e[1] });
+      }
+      std::map<std::string, real_t> params;
+      if (coord_enum == Coord::Qsph) {
+        params["r0"] = get<real_t>("grid.metric.qsph_r0");
+        params["h"]  = get<real_t>("grid.metric.qsph_h");
+      }
+      if ((engine_enum == SimEngine::GRPIC) &&
+          (metric_enum != Metric::Kerr_Schild_0)) {
+        params["a"] = get<real_t>("grid.metric.ks_a");
+      }
+      set("grid.metric.params", params);
+
+      std::pair<real_t, real_t> dx0_V0;
+      if (metric_enum == Metric::Minkowski) {
+        if (dim == Dim::_1D) {
+          dx0_V0 = get_dx0_V0<metric::Minkowski<Dim::_1D>>(res, ext, params);
+        } else if (dim == Dim::_2D) {
+          dx0_V0 = get_dx0_V0<metric::Minkowski<Dim::_2D>>(res, ext, params);
+        } else {
+          dx0_V0 = get_dx0_V0<metric::Minkowski<Dim::_3D>>(res, ext, params);
+        }
+      } else if (metric_enum == Metric::Spherical) {
+        dx0_V0 = get_dx0_V0<metric::Spherical<Dim::_2D>>(res, ext, params);
+      } else if (metric_enum == Metric::QSpherical) {
+        dx0_V0 = get_dx0_V0<metric::QSpherical<Dim::_2D>>(res, ext, params);
+      } else if (metric_enum == Metric::Kerr_Schild) {
+        dx0_V0 = get_dx0_V0<metric::KerrSchild<Dim::_2D>>(res, ext, params);
+      } else if (metric_enum == Metric::Kerr_Schild_0) {
+        dx0_V0 = get_dx0_V0<metric::KerrSchild0<Dim::_2D>>(res, ext, params);
+      } else if (metric_enum == Metric::QKerr_Schild) {
+        dx0_V0 = get_dx0_V0<metric::QKerrSchild<Dim::_2D>>(res, ext, params);
+      }
+      auto [dx0, V0] = dx0_V0;
+      set("scales.dx0", dx0);
+      set("scales.V0", V0);
+      set("scales.n0", ppc0 / V0);
+      set("scales.q0", V0 / (ppc0 * SQR(skindepth0)));
+
+      set("grid.metric.metric", metric_enum);
+    }
+  }
+
+  /*
+   * . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+   * Parameters that may be changed during the checkpoint restart
+   * . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+   */
+  void SimulationParams::setMutableParams(const toml::value& toml_data) {
+    const auto engine_enum     = get<SimEngine>("simulation.engine");
+    const auto coord_enum      = get<Coord>("grid.metric.coord");
+    const auto dim             = get<Dimension>("grid.dim");
+    const auto extent_pairwise = get<boundaries_t<real_t>>("grid.extent");
+
+    /* [simulation] --------------------------------------------------------- */
+    set("simulation.name",
+        toml::find<std::string>(toml_data, "simulation", "name"));
+    set("simulation.runtime",
+        toml::find<long double>(toml_data, "simulation", "runtime"));
+
+    /* [grid.boundaraies] --------------------------------------------------- */
+    auto flds_bc = toml::find<std::vector<std::vector<std::string>>>(
+      toml_data,
+      "grid",
+      "boundaries",
+      "fields");
+    {
+      raise::ErrorIf(flds_bc.size() < 1 || flds_bc.size() > 3,
+                     "invalid `grid.boundaries.fields`",
+                     HERE);
+      promiseToDefine("grid.boundaries.fields");
+      auto atm_defined = false;
+      for (const auto& bcs : flds_bc) {
+        for (const auto& bc : bcs) {
+          if (fmt::toLower(bc) == "match") {
+            promiseToDefine("grid.boundaries.match.ds");
+            promiseToDefine("grid.boundaries.match.coeff");
+          }
+          if (fmt::toLower(bc) == "atmosphere") {
+            raise::ErrorIf(atm_defined,
+                           "ATMOSPHERE is only allowed in one direction",
+                           HERE);
+            atm_defined = true;
+            promiseToDefine("grid.boundaries.atmosphere.temperature");
+            promiseToDefine("grid.boundaries.atmosphere.density");
+            promiseToDefine("grid.boundaries.atmosphere.height");
+            promiseToDefine("grid.boundaries.atmosphere.ds");
+            promiseToDefine("grid.boundaries.atmosphere.species");
+            promiseToDefine("grid.boundaries.atmosphere.g");
+          }
+        }
+      }
+    }
+
+    auto prtl_bc = toml::find<std::vector<std::vector<std::string>>>(
+      toml_data,
+      "grid",
+      "boundaries",
+      "particles");
+    {
+      raise::ErrorIf(prtl_bc.size() < 1 || prtl_bc.size() > 3,
+                     "invalid `grid.boundaries.particles`",
+                     HERE);
+      promiseToDefine("grid.boundaries.particles");
+      auto atm_defined = false;
+      for (const auto& bcs : prtl_bc) {
+        for (const auto& bc : bcs) {
+          if (fmt::toLower(bc) == "absorb") {
+            promiseToDefine("grid.boundaries.absorb.ds");
+          }
+          if (fmt::toLower(bc) == "atmosphere") {
+            raise::ErrorIf(atm_defined,
+                           "ATMOSPHERE is only allowed in one direction",
+                           HERE);
+            atm_defined = true;
+            promiseToDefine("grid.boundaries.atmosphere.temperature");
+            promiseToDefine("grid.boundaries.atmosphere.density");
+            promiseToDefine("grid.boundaries.atmosphere.height");
+            promiseToDefine("grid.boundaries.atmosphere.ds");
+            promiseToDefine("grid.boundaries.atmosphere.species");
+            promiseToDefine("grid.boundaries.atmosphere.g");
+          }
+        }
+      }
+    }
+
+    /* [algorithms] --------------------------------------------------------- */
+    set("algorithms.current_filters",
+        toml::find_or(toml_data,
+                      "algorithms",
+                      "current_filters",
+                      defaults::current_filters));
+
+    /* [algorithms.toggles] ------------------------------------------------- */
+    set("algorithms.toggles.fieldsolver",
+        toml::find_or(toml_data, "algorithms", "toggles", "fieldsolver", true));
+    set("algorithms.toggles.deposit",
+        toml::find_or(toml_data, "algorithms", "toggles", "deposit", true));
+
+    /* [algorithms.timestep] ------------------------------------------------ */
+    set("algorithms.timestep.CFL",
+        toml::find_or(toml_data, "algorithms", "timestep", "CFL", defaults::cfl));
+    set("algorithms.timestep.dt",
+        get<real_t>("algorithms.timestep.CFL") * get<real_t>("scales.dx0"));
+    set("algorithms.timestep.correction",
+        toml::find_or(toml_data,
+                      "algorithms",
+                      "timestep",
+                      "correction",
+                      defaults::correction));
+
+    /* [algorithms.gr] ------------------------------------------------------ */
+    if (engine_enum == SimEngine::GRPIC) {
+      set("algorithms.gr.pusher_eps",
+          toml::find_or(toml_data,
+                        "algorithms",
+                        "gr",
+                        "pusher_eps",
+                        defaults::gr::pusher_eps));
+      set("algorithms.gr.pusher_niter",
+          toml::find_or(toml_data,
+                        "algorithms",
+                        "gr",
+                        "pusher_niter",
+                        defaults::gr::pusher_niter));
+    }
+    /* [particles] ---------------------------------------------------------- */
+    set("particles.clear_interval",
+        toml::find_or(toml_data, "particles", "clear_interval", defaults::clear_interval));
+
+    /* [output] ------------------------------------------------------------- */
+    // fields
+    set("output.format",
+        toml::find_or(toml_data, "output", "format", defaults::output::format));
+    set("output.interval",
+        toml::find_or(toml_data, "output", "interval", defaults::output::interval));
+    set("output.interval_time",
+        toml::find_or<long double>(toml_data, "output", "interval_time", -1.0));
+    set("output.separate_files",
+        toml::find_or<bool>(toml_data, "output", "separate_files", true));
+
+    promiseToDefine("output.fields.interval");
+    promiseToDefine("output.fields.interval_time");
+    promiseToDefine("output.fields.enable");
+    promiseToDefine("output.particles.interval");
+    promiseToDefine("output.particles.interval_time");
+    promiseToDefine("output.particles.enable");
+    promiseToDefine("output.spectra.interval");
+    promiseToDefine("output.spectra.interval_time");
+    promiseToDefine("output.spectra.enable");
+
+    const auto flds_out        = toml::find_or(toml_data,
+                                        "output",
+                                        "fields",
+                                        "quantities",
+                                        std::vector<std::string> {});
+    const auto custom_flds_out = toml::find_or(toml_data,
+                                               "output",
+                                               "fields",
+                                               "custom",
+                                               std::vector<std::string> {});
+    if (flds_out.size() == 0) {
+      raise::Warning("No fields output specified", HERE);
+    }
+    set("output.fields.quantities", flds_out);
+    set("output.fields.custom", custom_flds_out);
+    set("output.fields.mom_smooth",
+        toml::find_or(toml_data,
+                      "output",
+                      "fields",
+                      "mom_smooth",
+                      defaults::output::mom_smooth));
+    auto field_dwn = toml::find_or(toml_data,
+                                   "output",
+                                   "fields",
+                                   "downsampling",
+                                   std::vector<unsigned int> { 1, 1, 1 });
+    raise::ErrorIf(field_dwn.size() > 3, "invalid `output.fields.downsampling`", HERE);
+    if (field_dwn.size() > dim) {
+      field_dwn.erase(field_dwn.begin() + (std::size_t)(dim), field_dwn.end());
+    }
+    for (const auto& dwn : field_dwn) {
+      raise::ErrorIf(dwn == 0, "downsampling factor must be nonzero", HERE);
+    }
+    set("output.fields.downsampling", field_dwn);
+
+    // particles
+    auto       all_specs = std::vector<unsigned short> {};
+    const auto nspec     = get<std::size_t>("particles.nspec");
+    for (auto i = 0u; i < nspec; ++i) {
+      all_specs.push_back(static_cast<unsigned short>(i + 1));
+    }
+    const auto prtl_out = toml::find_or(toml_data,
+                                        "output",
+                                        "particles",
+                                        "species",
+                                        all_specs);
+    set("output.particles.species", prtl_out);
+    set("output.particles.stride",
+        toml::find_or(toml_data,
+                      "output",
+                      "particles",
+                      "stride",
+                      defaults::output::prtl_stride));
+
+    // spectra
+    set("output.spectra.e_min",
+        toml::find_or(toml_data, "output", "spectra", "e_min", defaults::output::spec_emin));
+    set("output.spectra.e_max",
+        toml::find_or(toml_data, "output", "spectra", "e_max", defaults::output::spec_emax));
+    set("output.spectra.log_bins",
+        toml::find_or(toml_data,
+                      "output",
+                      "spectra",
+                      "log_bins",
+                      defaults::output::spec_log));
+    set("output.spectra.n_bins",
+        toml::find_or(toml_data,
+                      "output",
+                      "spectra",
+                      "n_bins",
+                      defaults::output::spec_nbins));
+
+    // intervals
+    for (const auto& type : { "fields", "particles", "spectra" }) {
+      const auto q_int      = toml::find_or<std::size_t>(toml_data,
+                                                    "output",
+                                                    std::string(type),
+                                                    "interval",
+                                                    0);
+      const auto q_int_time = toml::find_or<long double>(toml_data,
+                                                         "output",
+                                                         std::string(type),
+                                                         "interval_time",
+                                                         -1.0);
+      set("output." + std::string(type) + ".enable",
+          toml::find_or(toml_data, "output", std::string(type), "enable", true));
+      if (q_int == 0 && q_int_time == -1.0) {
+        set("output." + std::string(type) + ".interval",
+            get<std::size_t>("output.interval"));
+        set("output." + std::string(type) + ".interval_time",
+            get<long double>("output.interval_time"));
+      } else {
+        set("output." + std::string(type) + ".interval", q_int);
+        set("output." + std::string(type) + ".interval_time", q_int_time);
+      }
+    }
+
+    /* [output.debug] ------------------------------------------------------- */
+    set("output.debug.as_is",
+        toml::find_or(toml_data, "output", "debug", "as_is", false));
+    const auto output_ghosts = toml::find_or(toml_data,
+                                             "output",
+                                             "debug",
+                                             "ghosts",
+                                             false);
+    set("output.debug.ghosts", output_ghosts);
+    if (output_ghosts) {
+      for (const auto& dwn : field_dwn) {
+        raise::ErrorIf(
+          dwn != 1,
+          "full resolution required when outputting with ghost cells",
+          HERE);
+      }
+    }
+
+    /* [checkpoint] --------------------------------------------------------- */
+    set("checkpoint.interval",
+        toml::find_or(toml_data,
+                      "checkpoint",
+                      "interval",
+                      defaults::checkpoint::interval));
+    set("checkpoint.interval_time",
+        toml::find_or<long double>(toml_data, "checkpoint", "interval_time", -1.0));
+    set("checkpoint.keep",
+        toml::find_or(toml_data, "checkpoint", "keep", defaults::checkpoint::keep));
+
+    /* [diagnostics] -------------------------------------------------------- */
+    set("diagnostics.interval",
+        toml::find_or(toml_data, "diagnostics", "interval", defaults::diag::interval));
+    set("diagnostics.blocking_timers",
+        toml::find_or(toml_data, "diagnostics", "blocking_timers", false));
+    set("diagnostics.colored_stdout",
+        toml::find_or(toml_data, "diagnostics", "colored_stdout", false));
+
+    /* inferred variables --------------------------------------------------- */
     // fields/particle boundaries
     std::vector<std::vector<FldsBC>> flds_bc_enum;
     std::vector<std::vector<PrtlBC>> prtl_bc_enum;
@@ -631,58 +730,83 @@ namespace ntt {
     set("grid.boundaries.fields", flds_bc_pairwise);
     set("grid.boundaries.particles", prtl_bc_pairwise);
 
+    if (isPromised("grid.boundaries.match.ds")) {
+      if (coord_enum == Coord::Cart) {
+        auto min_extent = std::numeric_limits<real_t>::max();
+        for (const auto& e : extent_pairwise) {
+          min_extent = std::min(min_extent, e.second - e.first);
+        }
+        set("grid.boundaries.match.ds",
+            toml::find_or(toml_data,
+                          "grid",
+                          "boundaries",
+                          "match",
+                          "ds",
+                          min_extent * defaults::bc::match::ds_frac));
+      } else {
+        auto r_extent = extent_pairwise[0].second - extent_pairwise[0].first;
+        set("grid.boundaries.match.ds",
+            toml::find_or(toml_data,
+                          "grid",
+                          "boundaries",
+                          "match",
+                          "ds",
+                          r_extent * defaults::bc::match::ds_frac));
+      }
+      set("grid.boundaries.match.coeff",
+          toml::find_or(toml_data,
+                        "grid",
+                        "boundaries",
+                        "match",
+                        "coeff",
+                        defaults::bc::match::coeff));
+    }
+
     if (isPromised("grid.boundaries.absorb.ds")) {
       if (coord_enum == Coord::Cart) {
         auto min_extent = std::numeric_limits<real_t>::max();
-        for (const auto& e : extent) {
-          min_extent = std::min(min_extent, e[1] - e[0]);
+        for (const auto& e : extent_pairwise) {
+          min_extent = std::min(min_extent, e.second - e.first);
         }
         set("grid.boundaries.absorb.ds",
-            toml::find_or(raw_data,
+            toml::find_or(toml_data,
                           "grid",
                           "boundaries",
                           "absorb",
                           "ds",
                           min_extent * defaults::bc::absorb::ds_frac));
       } else {
-        auto r_extent = extent[0][1] - extent[0][0];
+        auto r_extent = extent_pairwise[0].second - extent_pairwise[0].first;
         set("grid.boundaries.absorb.ds",
-            toml::find_or(raw_data,
+            toml::find_or(toml_data,
                           "grid",
                           "boundaries",
                           "absorb",
                           "ds",
                           r_extent * defaults::bc::absorb::ds_frac));
       }
-      set("grid.boundaries.absorb.coeff",
-          toml::find_or(raw_data,
-                        "grid",
-                        "boundaries",
-                        "absorb",
-                        "coeff",
-                        defaults::bc::absorb::coeff));
     }
 
     if (isPromised("grid.boundaries.atmosphere.temperature")) {
-      const auto atm_T = toml::find<real_t>(raw_data,
+      const auto atm_T = toml::find<real_t>(toml_data,
                                             "grid",
                                             "boundaries",
                                             "atmosphere",
                                             "temperature");
-      const auto atm_h = toml::find<real_t>(raw_data,
+      const auto atm_h = toml::find<real_t>(toml_data,
                                             "grid",
                                             "boundaries",
                                             "atmosphere",
                                             "height");
       set("grid.boundaries.atmosphere.temperature", atm_T);
       set("grid.boundaries.atmosphere.density",
-          toml::find<real_t>(raw_data, "grid", "boundaries", "atmosphere", "density"));
+          toml::find<real_t>(toml_data, "grid", "boundaries", "atmosphere", "density"));
       set("grid.boundaries.atmosphere.ds",
-          toml::find_or(raw_data, "grid", "boundaries", "atmosphere", "ds", ZERO));
+          toml::find_or(toml_data, "grid", "boundaries", "atmosphere", "ds", ZERO));
       set("grid.boundaries.atmosphere.height", atm_h);
       set("grid.boundaries.atmosphere.g", atm_T / atm_h);
       const auto atm_species = toml::find<std::pair<unsigned short, unsigned short>>(
-        raw_data,
+        toml_data,
         "grid",
         "boundaries",
         "atmosphere",
@@ -693,78 +817,29 @@ namespace ntt {
     // gca
     if (isPromised("algorithms.gca.e_ovr_b_max")) {
       set("algorithms.gca.e_ovr_b_max",
-          toml::find_or(raw_data,
+          toml::find_or(toml_data,
                         "algorithms",
                         "gca",
                         "e_ovr_b_max",
                         defaults::gca::EovrB_max));
       set("algorithms.gca.larmor_max",
-          toml::find_or(raw_data, "algorithms", "gca", "larmor_max", ZERO));
+          toml::find_or(toml_data, "algorithms", "gca", "larmor_max", ZERO));
     }
 
     // cooling
     if (isPromised("algorithms.synchrotron.gamma_rad")) {
       set("algorithms.synchrotron.gamma_rad",
-          toml::find_or(raw_data,
+          toml::find_or(toml_data,
                         "algorithms",
                         "synchrotron",
                         "gamma_rad",
                         defaults::synchrotron::gamma_rad));
     }
+  }
 
-    // metric, dx0, V0, n0, q0
-    {
-      boundaries_t<real_t> ext;
-      for (const auto& e : extent) {
-        ext.push_back({ e[0], e[1] });
-      }
-      std::map<std::string, real_t> params;
-      if (coord_enum == Coord::Qsph) {
-        params["r0"] = get<real_t>("grid.metric.qsph_r0");
-        params["h"]  = get<real_t>("grid.metric.qsph_h");
-      }
-      if ((engine_enum == SimEngine::GRPIC) &&
-          (metric_enum != Metric::Kerr_Schild_0)) {
-        params["a"] = get<real_t>("grid.metric.ks_a");
-      }
-      set("grid.metric.params", params);
-
-      std::pair<real_t, real_t> dx0_V0;
-      if (metric_enum == Metric::Minkowski) {
-        if (dim == Dim::_1D) {
-          dx0_V0 = get_dx0_V0<metric::Minkowski<Dim::_1D>>(res, ext, params);
-        } else if (dim == Dim::_2D) {
-          dx0_V0 = get_dx0_V0<metric::Minkowski<Dim::_2D>>(res, ext, params);
-        } else {
-          dx0_V0 = get_dx0_V0<metric::Minkowski<Dim::_3D>>(res, ext, params);
-        }
-      } else if (metric_enum == Metric::Spherical) {
-        dx0_V0 = get_dx0_V0<metric::Spherical<Dim::_2D>>(res, ext, params);
-      } else if (metric_enum == Metric::QSpherical) {
-        dx0_V0 = get_dx0_V0<metric::QSpherical<Dim::_2D>>(res, ext, params);
-      } else if (metric_enum == Metric::Kerr_Schild) {
-        dx0_V0 = get_dx0_V0<metric::KerrSchild<Dim::_2D>>(res, ext, params);
-      } else if (metric_enum == Metric::Kerr_Schild_0) {
-        dx0_V0 = get_dx0_V0<metric::KerrSchild0<Dim::_2D>>(res, ext, params);
-      } else if (metric_enum == Metric::QKerr_Schild) {
-        dx0_V0 = get_dx0_V0<metric::QKerrSchild<Dim::_2D>>(res, ext, params);
-      }
-      auto [dx0, V0] = dx0_V0;
-      set("scales.dx0", dx0);
-      set("scales.V0", V0);
-      set("scales.n0", ppc0 / V0);
-      set("scales.q0", V0 / (ppc0 * SQR(skindepth0)));
-
-      set("grid.metric.metric", metric_enum);
-      set("algorithms.timestep.dt", get<real_t>("algorithms.timestep.CFL") * dx0);
-    }
-
-    raise::ErrorIf(!promisesFulfilled(),
-                   "Have not defined all the necessary variables",
-                   HERE);
-
+  void SimulationParams::setSetupParams(const toml::value& toml_data) {
     /* [setup] -------------------------------------------------------------- */
-    const auto& setup = toml::find_or(raw_data, "setup", toml::table {});
+    const auto& setup = toml::find_or(toml_data, "setup", toml::table {});
     for (const auto& [key, val] : setup) {
       if (val.is_boolean()) {
         set("setup." + key, (bool)(val.as_boolean()));
@@ -811,5 +886,19 @@ namespace ntt {
         }
       }
     }
+  }
+
+  void SimulationParams::setCheckpointParams(bool        is_resuming,
+                                             std::size_t start_step,
+                                             long double start_time) {
+    set("checkpoint.is_resuming", is_resuming);
+    set("checkpoint.start_step", start_step);
+    set("checkpoint.start_time", start_time);
+  }
+
+  void SimulationParams::checkPromises() const {
+    raise::ErrorIf(!promisesFulfilled(),
+                   "Have not defined all the necessary variables",
+                   HERE);
   }
 } // namespace ntt

@@ -48,31 +48,22 @@ namespace ntt {
 
   public:
     // Cell indices of the current particle
-    array_t<int*>                 i1, i2, i3;
+    array_t<int*>      i1, i2, i3;
     // Displacement of a particle within the cell
-    array_t<prtldx_t*>            dx1, dx2, dx3;
+    array_t<prtldx_t*> dx1, dx2, dx3;
     // Three spatial components of the covariant 4-velocity (physical units)
-    array_t<real_t*>              ux1, ux2, ux3;
+    array_t<real_t*>   ux1, ux2, ux3;
     // Particle weights.
-    array_t<real_t*>              weight;
+    array_t<real_t*>   weight;
     // Previous timestep coordinates
-    array_t<int*>                 i1_prev, i2_prev, i3_prev;
-    array_t<prtldx_t*>            dx1_prev, dx2_prev, dx3_prev;
+    array_t<int*>      i1_prev, i2_prev, i3_prev;
+    array_t<prtldx_t*> dx1_prev, dx2_prev, dx3_prev;
     // Array to tag the particles
-    array_t<short*>               tag;
-    // Array to store the particle load
-    std::vector<array_t<real_t*>> pld;
+    array_t<short*>    tag;
+    // Array to store the particle payloads
+    array_t<real_t**>  pld;
     // phi coordinate (for axisymmetry)
-    array_t<real_t*>              phi;
-
-    // host mirrors
-    array_mirror_t<int*>                 i1_h, i2_h, i3_h;
-    array_mirror_t<prtldx_t*>            dx1_h, dx2_h, dx3_h;
-    array_mirror_t<real_t*>              ux1_h, ux2_h, ux3_h;
-    array_mirror_t<real_t*>              weight_h;
-    array_mirror_t<real_t*>              phi_h;
-    array_mirror_t<short*>               tag_h;
-    std::vector<array_mirror_t<real_t*>> pld_h;
+    array_t<real_t*>   phi;
 
     // for empty allocation
     Particles() {}
@@ -178,19 +169,26 @@ namespace ntt {
       footprint             += sizeof(prtldx_t) * dx2_prev.extent(0);
       footprint             += sizeof(prtldx_t) * dx3_prev.extent(0);
       footprint             += sizeof(short) * tag.extent(0);
-      for (auto& p : pld) {
-        footprint += sizeof(real_t) * p.extent(0);
-      }
-      footprint += sizeof(real_t) * phi.extent(0);
+      footprint             += sizeof(real_t) * pld.extent(0) * pld.extent(1);
+      footprint             += sizeof(real_t) * phi.extent(0);
       return footprint;
     }
 
     /**
      * @brief Count the number of particles with a specific tag.
-     * @return The vector of counts for each tag.
+     * @return The vector of counts for each tag + offsets
+     * @note For instance, given the counts: 0 -> n0, 1 -> n1, 2 -> n2, 3 -> n3,
+     * ... it returns:
+     * ... [n0, n1, n2, n3, ...] of size ntags
+     * ... [n2, n2 + n3, n2 + n3 + n4, ...]  of size ntags - 3
+     * ... so in buffer array:
+     * ... tag=2 particles are offset by 0
+     * ... tag=3 particles are offset by n2
+     * ... tag=4 particles are offset by n2 + n3
+     * ... etc.
      */
-    [[nodiscard]]
-    auto npart_per_tag() const -> std::vector<std::size_t>;
+    auto NpartsPerTagAndOffsets() const
+      -> std::pair<std::vector<std::size_t>, array_t<std::size_t*>>;
 
     /* setters -------------------------------------------------------------- */
     /**
@@ -213,15 +211,16 @@ namespace ntt {
     }
 
     /**
-     * @brief Sort particles by their tags.
-     * @return The vector of counts per each tag.
+     * @brief Move dead particles to the end of arrays
      */
-    auto SortByTags() -> std::vector<std::size_t>;
+    void RemoveDead();
 
     /**
      * @brief Copy particle data from device to host.
      */
     void SyncHostDevice();
+
+    // void PrintTags();
   };
 
 } // namespace ntt

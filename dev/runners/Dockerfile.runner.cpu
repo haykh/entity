@@ -1,0 +1,73 @@
+FROM ubuntu:22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# upgrade
+RUN apt-get update && apt-get upgrade -y
+
+# cmake & build tools
+RUN apt-get remove -y --purge cmake && \
+    apt-get install -y sudo wget curl build-essential openmpi-bin openmpi-common libopenmpi-dev && \
+    wget "https://github.com/Kitware/CMake/releases/download/v3.29.6/cmake-3.29.6-linux-x86_64.tar.gz" -P /opt && \
+    tar xvf /opt/cmake-3.29.6-linux-x86_64.tar.gz -C /opt && \
+    rm /opt/cmake-3.29.6-linux-x86_64.tar.gz
+ENV PATH=/opt/cmake-3.29.6-linux-x86_64/bin:$PATH
+
+# adios2
+RUN apt-get update && apt-get install -y git libhdf5-openmpi-dev && \
+    git clone https://github.com/ornladios/ADIOS2.git /opt/adios2-src && \
+    cd /opt/adios2-src && \
+    cmake -B build \
+      -D CMAKE_CXX_STANDARD=17 \
+      -D CMAKE_CXX_EXTENSIONS=OFF \
+      -D CMAKE_POSITION_INDEPENDENT_CODE=TRUE \
+      -D BUILD_SHARED_LIBS=ON \
+      -D ADIOS2_USE_HDF5=ON \
+      -D ADIOS2_USE_Python=OFF \
+      -D ADIOS2_USE_Fortran=OFF \
+      -D ADIOS2_USE_ZeroMQ=OFF \
+      -D BUILD_TESTING=OFF \
+      -D ADIOS2_BUILD_EXAMPLES=OFF \
+      -D ADIOS2_USE_MPI=ON \
+      -D ADIOS2_HAVE_HDF5_VOL=OFF \
+      -D CMAKE_INSTALL_PREFIX=/opt/adios2 && \
+    cmake --build build -j && \
+    cmake --install build && \
+    rm -rf /opt/adios2-src
+
+ENV HDF5_ROOT=/usr
+ENV ADIOS2_DIR=/opt/adios2
+ENV PATH=/opt/adios2/bin:$PATH
+
+# cleanup
+RUN apt-get clean && \
+    apt-get autoclean && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/cache/* && \
+    rm -rf /var/lib/log/* && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG USER=runner
+RUN useradd -ms /usr/bin/zsh $USER && \
+    usermod -aG sudo $USER && \
+    echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+USER $USER
+ARG HOME=/home/$USER
+WORKDIR $HOME
+
+# gh runner
+ARG RUNNER_VERSION=2.317.0
+RUN mkdir actions-runner
+WORKDIR $HOME/actions-runner
+
+RUN curl -o actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz \
+         -L https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz && \
+    tar xzf ./actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz && \
+    sudo ./bin/installdependencies.sh
+
+ADD start.sh start.sh
+RUN sudo chown $USER:$USER start.sh && \
+    sudo chmod +x start.sh
+
+ENTRYPOINT ["./start.sh"]

@@ -185,7 +185,7 @@ namespace user {
         const auto injector = arch::UniformInjector<S, M, arch::Maxwellian>(
           energy_dist,
           { 1, 2 });
-        const real_t ndens = 1.0;
+        const real_t ndens = 0.9;
         arch::InjectUniform<S, M, decltype(injector)>(params,
                                                       local_domain,
                                                       injector,
@@ -193,22 +193,17 @@ namespace user {
       }
 
       {
-        // const auto energy_dist = arch::Maxwellian<S, M>(local_domain.mesh.metric,
-        //                                                 local_domain.random_pool,
-        //                                                 temperature*10);        
-        // // const auto energy_dist = arch::Maxwellian<S, M>(local_domain.mesh.metric,
-        // //                                                 local_domain.random_pool,
-        // //                                                 temperature * 2,
-        // //                                                 10.0,
-        // //                                                 1);
-        // const auto injector = arch::UniformInjector<S, M, arch::Maxwellian>(
-        //   energy_dist,
-        //   { 1, 2 });
-        // const real_t ndens = 0.01;
-        // arch::InjectUniform<S, M, decltype(injector)>(params,
-        //                                               local_domain,
-        //                                               injector,
-        //                                               ndens);
+        const auto energy_dist = arch::PowerlawDist<S, M>(local_domain.mesh.metric,
+                                                        local_domain.random_pool,
+                                                        0.1, 100.0, -3.0);
+        const auto injector = arch::UniformInjector<S, M, arch::PowerlawDist>(
+          energy_dist,
+          { 1, 2 });
+        const real_t ndens = 0.1;
+        arch::InjectUniform<S, M, decltype(injector)>(params,
+                                                      local_domain,
+                                                      injector,
+                                                      ndens);
       }
     }
 

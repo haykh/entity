@@ -59,14 +59,17 @@ ARG HOME=/home/$USER
 WORKDIR $HOME
 
 # gh runner
+ARG RUNNER_VERSION=2.317.0
 RUN mkdir actions-runner
 WORKDIR $HOME/actions-runner
 
-RUN --mount=type=secret,id=ghtoken \
-    curl -o actions-runner-linux-x64-2.317.0.tar.gz \
-         -L https://github.com/actions/runner/releases/download/v2.317.0/actions-runner-linux-x64-2.317.0.tar.gz && \
-    tar xzf ./actions-runner-linux-x64-2.317.0.tar.gz && \
-    sudo ./bin/installdependencies.sh && \
-    ./config.sh --url https://github.com/entity-toolkit/entity --token "$(sudo cat /run/secrets/ghtoken)" --labels nvidia-gpu
+RUN curl -o actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz \
+         -L https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz && \
+    tar xzf ./actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz && \
+    sudo ./bin/installdependencies.sh
 
-ENTRYPOINT ["./run.sh"]
+ADD start.sh start.sh
+RUN sudo chown $USER:$USER start.sh && \
+    sudo chmod +x start.sh
+
+ENTRYPOINT ["./start.sh"]

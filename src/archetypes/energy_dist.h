@@ -3,7 +3,8 @@
  * @brief Defines an archetype for energy distributions
  * @implements
  *   - arch::EnergyDistribution<>
- *   - arch::ColdDist<> : arch::EnergyDistribution<>
+ *   - arch::Cold<> : arch::EnergyDistribution<>
+ *   - arch::Powerlaw<> : arch::EnergyDistribution<>
  *   - arch::Maxwellian<> : arch::EnergyDistribution<>
  * @namespaces:
  *   - arch::
@@ -55,8 +56,8 @@ namespace arch {
   };
 
   template <SimEngine::type S, class M>
-  struct ColdDist : public EnergyDistribution<S, M> {
-    ColdDist(const M& metric) : EnergyDistribution<S, M> { metric } {}
+  struct Cold : public EnergyDistribution<S, M> {
+    Cold(const M& metric) : EnergyDistribution<S, M> { metric } {}
 
     Inline void operator()(const coord_t<M::Dim>&,
                            vec_t<Dim::_3D>& v,
@@ -65,6 +66,63 @@ namespace arch {
       v[1] = ZERO;
       v[2] = ZERO;
     }
+  };
+
+  template <SimEngine::type S, class M>
+  struct Powerlaw : public EnergyDistribution<S, M> {
+    using EnergyDistribution<S, M>::metric;
+
+    Powerlaw(const M&              metric,
+             random_number_pool_t& pool,
+             real_t                g_min,
+             real_t                g_max,
+             real_t                pl_ind)
+      : EnergyDistribution<S, M> { metric }
+      , pool { pool }
+      , g_min { g_min }
+      , g_max { g_max }
+      , pl_ind { pl_ind } {}
+
+    Inline void operator()(const coord_t<M::Dim>& x_Code,
+                           vec_t<Dim::_3D>&       v,
+                           unsigned short         sp = 0) const override {
+      auto rand_gen = pool.get_state();
+      auto rand_X1  = Random<real_t>(rand_gen);
+      auto rand_gam = ONE;
+
+      // Power-law distribution from uniform (see https://mathworld.wolfram.com/RandomNumber.html)
+      if (pl_ind != -ONE) {
+        rand_gam += math::pow(
+          math::pow(g_min, ONE + pl_ind) +
+            (-math::pow(g_min, ONE + pl_ind) + math::pow(g_max, ONE + pl_ind)) *
+              rand_X1,
+          ONE / (ONE + pl_ind));
+      } else {
+        rand_gam += math::pow(g_min, ONE - rand_X1) * math::pow(g_max, rand_X1);
+      }
+      auto rand_u  = math::sqrt(SQR(rand_gam) - ONE);
+      auto rand_X2 = Random<real_t>(rand_gen);
+      auto rand_X3 = Random<real_t>(rand_gen);
+      v[0]         = rand_u * (TWO * rand_X2 - ONE);
+      v[2]         = TWO * rand_u * math::sqrt(rand_X2 * (ONE - rand_X2));
+      v[1]         = v[2] * math::cos(constant::TWO_PI * rand_X3);
+      v[2]         = v[2] * math::sin(constant::TWO_PI * rand_X3);
+
+      if constexpr (S == SimEngine::GRPIC) {
+        // convert from the tetrad basis to covariant
+        vec_t<Dim::_3D> v_Hat;
+        v_Hat[0] = v[0];
+        v_Hat[1] = v[1];
+        v_Hat[2] = v[2];
+        metric.template transform<Idx::T, Idx::D>(x_Code, v_Hat, v);
+      }
+
+      pool.free_state(rand_gen);
+    }
+
+  private:
+    const real_t         g_min, g_max, pl_ind;
+    random_number_pool_t pool;
   };
 
   template <SimEngine::type S, class M>

@@ -223,7 +223,6 @@ namespace kernel {
         }
         coeff *= weight(p) * smooth;
       }
-
       auto buff_access = Buff.access();
       if constexpr (D == Dim::_1D) {
         for (auto di1 { -window }; di1 <= window; ++di1) {

@@ -1,17 +1,17 @@
 [simulation]
-  name = "magnetar"
-  engine = "srpic"
+  name    = "magnetar"
+  engine  = "srpic"
   runtime = 50.0
 
 [grid]
-  resolution = [2048,1024]
-  extent = [[1.0, 400.0]]
+  resolution = [2048, 1024]
+  extent     = [[1.0, 400.0]]
 
   [grid.metric]
     metric = "qspherical"
 
   [grid.boundaries]
-    fields = [["ATMOSPHERE", "ABSORB"]]
+    fields    = [["ATMOSPHERE", "ABSORB"]]
     particles = [["ATMOSPHERE", "ABSORB"]]
 
     [grid.boundaries.absorb]
@@ -19,13 +19,13 @@
 
     [grid.boundaries.atmosphere]
       temperature = 0.1
-      density = 40.0
-      height = 0.02
-      species = [1, 2]
-      ds = 0.5
+      density     = 40.0
+      height      = 0.02
+      species     = [1, 2]
+      ds          = 0.5
 
 [scales]
-  larmor0 = 1e-5
+  larmor0    = 1e-5
   skindepth0 = 0.01
 
 [algorithms]
@@ -36,59 +36,59 @@
 
   [algorithms.gca]
     e_ovr_b_max = 0.9
-    larmor_max = 100.0
+    larmor_max  = 100.0
 
 [particles]
-  ppc0 = 4.0
-  use_weights = true
-  sort_interval = 100
+  ppc0           = 4.0
+  use_weights    = true
+  clear_interval = 100
 
   [[particles.species]]
-  label = "e-"
-  mass = 1.0
-  charge = -1.0
-  maxnpart = 5e7
-  pusher = "Boris,GCA"
+    label    = "e-"
+    mass     = 1.0
+    charge   = -1.0
+    maxnpart = 5e7
+    pusher   = "Boris,GCA"
 
   [[particles.species]]
-  label = "e+"
-  mass = 1.0
-  charge = 1.0
-  maxnpart = 5e7
-  pusher = "Boris,GCA"
+    label    = "e+"
+    mass     = 1.0
+    charge   = 1.0
+    maxnpart = 5e7
+    pusher   = "Boris,GCA"
 
   [[particles.species]]
-  label = "e-"
-  mass = 1.0
-  charge = -1.0
-  maxnpart = 5e7
-  pusher = "Boris,GCA"
+    label    = "e-"
+    mass     = 1.0
+    charge   = -1.0
+    maxnpart = 5e7
+    pusher   = "Boris,GCA"
 
   [[particles.species]]
-  label = "e+"
-  mass = 1.0
-  charge = 1.0
-  maxnpart = 5e7
-  pusher = "Boris,GCA"
+    label    = "e+"
+    mass     = 1.0
+    charge   = 1.0
+    maxnpart = 5e7
+    pusher   = "Boris,GCA"
 
   [[particles.species]]
-  label = "e-"
-  mass = 1.0
-  charge = -1.0
-  maxnpart = 5e7
-  pusher = "Boris,GCA"
+    label    = "e-"
+    mass     = 1.0
+    charge   = -1.0
+    maxnpart = 5e7
+    pusher   = "Boris,GCA"
 
   [[particles.species]]
-  label = "e+"
-  mass = 1.0
-  charge = 1.0
-  maxnpart = 5e7
-  pusher = "Boris,GCA"
+    label    = "e+"
+    mass     = 1.0
+    charge   = 1.0
+    maxnpart = 5e7
+    pusher   = "Boris,GCA"
 
 [setup]
-  Bsurf = 1.0
-  omega = 0.0125
-  pp_thres = 10.0
+  Bsurf       = 1.0
+  omega       = 0.0125
+  pp_thres    = 10.0
   gamma_pairs = 1.75
 
 [output]
@@ -96,7 +96,7 @@
 
   [output.fields]
     interval_time = 0.5
-    quantities = ["N_1", "N_2", "N_3", "N_4", "N_5", "N_6", "B", "E", "J"]
+    quantities    = ["N_1", "N_2", "N_3", "N_4", "N_5", "N_6", "B", "E", "J"]
 
   [output.particles]
     enable = false

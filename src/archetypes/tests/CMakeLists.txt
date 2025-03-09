@@ -1,9 +1,11 @@
 # ------------------------------
 # @brief: Generates tests for the `ntt_archetypes` module
+#
 # @uses:
-# - kokkos [required]
-# - plog [required]
-# - mpi [optional]
+#
+# * kokkos [required]
+# * plog [required]
+# * mpi [optional]
 # ------------------------------
 
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../)
@@ -23,3 +25,4 @@ endfunction()
 gen_test(energy_dist)
 gen_test(spatial_dist)
 gen_test(field_setter)
+gen_test(powerlaw)

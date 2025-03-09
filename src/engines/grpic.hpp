@@ -15,8 +15,10 @@
 #include "enums.h"
 
 #include "utils/timer.h"
+#include "utils/toml.h"
 
 #include "framework/domain/domain.h"
+#include "framework/parameters.h"
 
 #include "engines/engine.hpp"
 
@@ -24,14 +26,15 @@ namespace ntt {
 
   template <class M>
   class GRPICEngine : public Engine<SimEngine::GRPIC, M> {
+    using base_t = Engine<SimEngine::GRPIC, M>;
+
     using Engine<SimEngine::GRPIC, M>::m_params;
     using Engine<SimEngine::GRPIC, M>::m_metadomain;
 
   public:
     static constexpr auto S { SimEngine::SRPIC };
 
-    GRPICEngine(SimulationParams& params)
-      : Engine<SimEngine::GRPIC, M> { params } {}
+    GRPICEngine(const SimulationParams& params) : base_t { params } {}
 
     ~GRPICEngine() = default;
 

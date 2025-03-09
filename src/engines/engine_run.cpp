@@ -1,6 +1,7 @@
 #include "enums.h"
 
 #include "arch/traits.h"
+#include "utils/diag.h"
 
 #include "metrics/kerr_schild.h"
 #include "metrics/kerr_schild_0.h"
@@ -25,8 +26,9 @@ namespace ntt {
          "CurrentFiltering", "CurrentDeposit",
          "ParticlePusher", "FieldBoundaries",
          "ParticleBoundaries", "Communications",
-         "Injector", "Sorting",
-         "Custom", "Output" },
+         "Injector", "Custom",
+         "PrtlClear", "Output",
+         "Checkpoint" },
         []() {
           Kokkos::fence();
          },
@@ -35,9 +37,9 @@ namespace ntt {
       const auto diag_interval = m_params.get<std::size_t>(
         "diagnostics.interval");
 
-      auto       time_history  = pbar::DurationHistory { 1000 };
-      const auto sort_interval = m_params.template get<std::size_t>(
-        "particles.sort_interval");
+      auto       time_history   = pbar::DurationHistory { 1000 };
+      const auto clear_interval = m_params.template get<std::size_t>(
+        "particles.clear_interval");
 
       // main algorithm loop
       while (step < max_steps) {
@@ -54,13 +56,15 @@ namespace ntt {
           });
           timers.stop("Custom");
         }
-        auto print_sorting = (sort_interval > 0 and step % sort_interval == 0);
+        auto print_prtl_clear = (clear_interval > 0 and
+                                 step % clear_interval == 0 and step > 0);
 
-        // advance time & timestep
-        ++step;
+        // advance time & step
         time += dt;
+        ++step;
 
-        auto print_output = false;
+        auto print_output     = false;
+        auto print_checkpoint = false;
 #if defined(OUTPUT_ENABLED)
         timers.start("Output");
         if constexpr (
@@ -73,31 +77,55 @@ namespace ntt {
           };
           print_output = m_metadomain.Write(m_params,
                                             step,
+                                            step - 1,
                                             time,
+                                            time - dt,
                                             lambda_custom_field_output);
         } else {
-          print_output = m_metadomain.Write(m_params, step, time);
+          print_output = m_metadomain.Write(m_params, step, step - 1, time, time - dt);
         }
         timers.stop("Output");
+
+        timers.start("Checkpoint");
+        print_checkpoint = m_metadomain.WriteCheckpoint(m_params,
+                                                        step,
+                                                        step - 1,
+                                                        time,
+                                                        time - dt);
+        timers.stop("Checkpoint");
 #endif
 
         // advance time_history
         time_history.tick();
-        // print final timestep report
+        // print timestep report
         if (diag_interval > 0 and step % diag_interval == 0) {
-          print_step_report(timers, time_history, print_output, print_sorting);
+          diag::printDiagnostics(
+            step - 1,
+            max_steps,
+            time - dt,
+            dt,
+            timers,
+            time_history,
+            m_metadomain.l_ncells(),
+            m_metadomain.species_labels(),
+            m_metadomain.l_npart_perspec(),
+            m_metadomain.l_maxnpart_perspec(),
+            print_prtl_clear,
+            print_output,
+            print_checkpoint,
+            m_params.get<bool>("diagnostics.colored_stdout"));
         }
         timers.resetAll();
       }
     }
   }
 
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>;
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_2D>>;
-  template class Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_3D>>;
-  template class Engine<SimEngine::SRPIC, metric::Spherical<Dim::_2D>>;
-  template class Engine<SimEngine::SRPIC, metric::QSpherical<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>>;
-  template class Engine<SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>>;
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_2D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_3D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Spherical<Dim::_2D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::QSpherical<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>>::run();
 } // namespace ntt

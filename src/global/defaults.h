@@ -16,16 +16,15 @@
 
 namespace ntt::defaults {
   constexpr std::string_view input_filename = "input";
-  constexpr std::string_view output_path    = "output";
 
   const real_t correction = 1.0;
   const real_t cfl        = 0.95;
 
   const unsigned short current_filters = 0;
 
-  const std::string em_pusher     = "Boris";
-  const std::string ph_pusher     = "Photon";
-  const std::size_t sort_interval = 100;
+  const std::string em_pusher      = "Boris";
+  const std::string ph_pusher      = "Photon";
+  const std::size_t clear_interval = 100;
 
   namespace qsph {
     const real_t r0 = 0.0;
@@ -42,23 +41,31 @@ namespace ntt::defaults {
   } // namespace gr
 
   namespace bc {
-    namespace absorb {
+    namespace match {
       const real_t ds_frac = 0.01;
       const real_t coeff   = 1.0;
+    } // namespace match
+
+    namespace absorb {
+      const real_t ds_frac = 0.01;
     } // namespace absorb
-  }   // namespace bc
+  } // namespace bc
 
   namespace output {
     const std::string    format      = "hdf5";
     const std::size_t    interval    = 100;
     const unsigned short mom_smooth  = 0;
-    const unsigned short flds_stride = 1;
     const std::size_t    prtl_stride = 100;
     const real_t         spec_emin   = 1e-3;
     const real_t         spec_emax   = 1e3;
     const bool           spec_log    = true;
     const std::size_t    spec_nbins  = 200;
   } // namespace output
+
+  namespace checkpoint {
+    const std::size_t interval = 1000;
+    const int         keep     = 2;
+  } // namespace checkpoint
 
   namespace diag {
     const std::size_t interval = 1;

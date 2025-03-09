@@ -29,8 +29,7 @@ void errorIf(bool condition, const std::string& message) {
 
 inline static constexpr auto epsilon = std::numeric_limits<real_t>::epsilon();
 
-Inline auto equal(real_t a, real_t b, const char* msg = "", real_t acc = ONE)
-  -> bool {
+Inline auto equal(real_t a, real_t b, const char* msg = "", real_t acc = ONE) -> bool {
   const auto eps = epsilon * acc;
   if (not cmp::AlmostEqual(a, b, eps)) {
     printf("%.12e != %.12e %s\n", a, b, msg);
@@ -81,8 +80,6 @@ void testDeposit(const std::vector<std::size_t>&      res,
   array_t<short*>      tag { "tag", 10 };
   const real_t         charge { 1.0 }, inv_dt { 1.0 };
 
-  auto J_scat = Kokkos::Experimental::create_scatter_view(J);
-
   const int i0 = 4, j0 = 4;
 
   const prtldx_t dxi = 0.53, dxf = 0.47;
@@ -122,30 +119,19 @@ void testDeposit(const std::vector<std::size_t>&      res,
   put_value<real_t>(weight, 1.0, 0);
   put_value<short>(tag, ParticleTag::alive, 0);
 
-  Kokkos::parallel_for("CurrentsDeposit",
-                       10,
+  auto J_scat = Kokkos::Experimental::create_scatter_view(J);
+
+  // clang-format off
+  Kokkos::parallel_for("CurrentsDeposit", 10,
                        kernel::DepositCurrents_kernel<S, M>(J_scat,
-                                                            i1,
-                                                            i2,
-                                                            i3,
-                                                            i1_prev,
-                                                            i2_prev,
-                                                            i3_prev,
-                                                            dx1,
-                                                            dx2,
-                                                            dx3,
-                                                            dx1_prev,
-                                                            dx2_prev,
-                                                            dx3_prev,
-                                                            ux1,
-                                                            ux2,
-                                                            ux3,
-                                                            phi,
-                                                            weight,
-                                                            tag,
-                                                            metric,
-                                                            charge,
-                                                            inv_dt));
+                                                            i1, i2, i3,
+                                                            i1_prev, i2_prev, i3_prev,
+                                                            dx1, dx2, dx3,
+                                                            dx1_prev, dx2_prev, dx3_prev,
+                                                            ux1, ux2, ux3,
+                                                            phi, weight, tag,
+                                                            metric, charge, inv_dt));
+  // clang-format on
 
   Kokkos::Experimental::contribute(J, J_scat);
 

@@ -20,9 +20,12 @@
   #include "arch/mpi_tags.h"
 
   #include "framework/domain/comm_mpi.hpp"
+  #include "kernels/comm.hpp"
 #else
   #include "framework/domain/comm_nompi.hpp"
 #endif
+
+#include <Kokkos_Core.hpp>
 
 #include <utility>
 #include <vector>
@@ -86,8 +89,8 @@ namespace ntt {
     } else {
       // no communication necessary
       return {
-        {0, -1},
-        {0, -1}
+        { 0, -1 },
+        { 0, -1 }
       };
     }
 #if defined(MPI_ENABLED)
@@ -110,8 +113,8 @@ namespace ntt {
     (void)send_rank;
     (void)recv_rank;
     return {
-      {send_ind, send_rank},
-      {recv_ind, recv_rank}
+      { send_ind, send_rank },
+      { recv_ind, recv_rank }
     };
   }
 
@@ -129,8 +132,8 @@ namespace ntt {
     const auto is_receiving          = (recv_rank >= 0);
     if (not(is_sending or is_receiving)) {
       return {
-        {{ 0, -1 }, {}},
-        {{ 0, -1 }, {}}
+        { { 0, -1 }, {} },
+        { { 0, -1 }, {} }
       };
     }
     auto     send_slice   = std::vector<range_tuple_t> {};
@@ -196,8 +199,8 @@ namespace ntt {
     }
 
     return {
-      {{ send_ind, send_rank }, send_slice},
-      {{ recv_ind, recv_rank }, recv_slice},
+      { { send_ind, send_rank }, send_slice },
+      { { recv_ind, recv_rank }, recv_slice },
     };
   }
 
@@ -492,157 +495,151 @@ namespace ntt {
   }
 
   template <SimEngine::type S, class M>
-  void Metadomain<S, M>::CommunicateParticles(Domain<S, M>&  domain,
-                                              timer::Timers* timers) {
-    raise::ErrorIf(timers == nullptr,
-                   "Timers not passed when Comm::Prtl called",
-                   HERE);
+  void Metadomain<S, M>::CommunicateParticles(Domain<S, M>& domain) {
+#if defined(MPI_ENABLED)
     logger::Checkpoint("Communicating particles\n", HERE);
     for (auto& species : domain.species) {
-      // at this point particles should already by tagged in the pusher
-      timers->start("Sorting");
-      const auto npart_per_tag = species.SortByTags();
-      timers->stop("Sorting");
-#if defined(MPI_ENABLED)
-      timers->start("Communications");
-      // only necessary when MPI is enabled
-      /**
-       *                                                        index_last
-       *                                                            |
-       *    alive      new dead         tag1       tag2             v     dead
-       * [ 11111111   000000000    222222222    3333333 .... nnnnnnn  00000000 ... ]
-       *                           ^        ^
-       *                           |        |
-       *     tag_offset[tag1] -----+        +----- tag_offset[tag1] + npart_per_tag[tag1]
-       *          "send_pmin"                      "send_pmax" (after last element)
-       */
-      auto tag_offset { npart_per_tag };
-      for (std::size_t i { 1 }; i < tag_offset.size(); ++i) {
-        tag_offset[i] += tag_offset[i - 1];
-      }
-      for (std::size_t i { 0 }; i < tag_offset.size(); ++i) {
-        tag_offset[i] -= npart_per_tag[i];
-      }
-      auto index_last = tag_offset[tag_offset.size() - 1] +
-                        npart_per_tag[npart_per_tag.size() - 1];
-      for (auto& direction : dir::Directions<D>::all) {
+      const auto ntags = species.ntags();
+
+      // at this point particles should already be tagged in the pusher
+      auto [npptag_vec, tag_offsets] = species.NpartsPerTagAndOffsets();
+      const auto npart_dead          = npptag_vec[ParticleTag::dead];
+      const auto npart_alive         = npptag_vec[ParticleTag::alive];
+
+      const auto npart       = species.npart();
+      const auto npart_holes = npart - npart_alive;
+
+      // # of particles to receive per each tag (direction)
+      std::vector<std::size_t> npptag_recv_vec(ntags - 2, 0);
+      // coordinate shifts per each direction
+      array_t<int*>            shifts_in_x1 { "shifts_in_x1", ntags - 2 };
+      array_t<int*>            shifts_in_x2 { "shifts_in_x2", ntags - 2 };
+      array_t<int*>            shifts_in_x3 { "shifts_in_x3", ntags - 2 };
+      auto shifts_in_x1_h = Kokkos::create_mirror_view(shifts_in_x1);
+      auto shifts_in_x2_h = Kokkos::create_mirror_view(shifts_in_x2);
+      auto shifts_in_x3_h = Kokkos::create_mirror_view(shifts_in_x3);
+
+      // all directions requiring communication
+      dir::dirs_t<D> dirs_to_comm;
+
+      // ranks & indices of meshblock to send/recv from
+      std::vector<int> send_ranks, send_inds;
+      std::vector<int> recv_ranks, recv_inds;
+
+      // total # of reaceived particles from all directions
+      std::size_t npart_recv = 0u;
+
+      for (const auto& direction : dir::Directions<D>::all) {
+        // tags corresponding to the direction (both send & recv)
+        const auto tag_recv = mpi::PrtlSendTag<D>::dir2tag(-direction);
+        const auto tag_send = mpi::PrtlSendTag<D>::dir2tag(direction);
+
+        // get indices & ranks of send/recv meshblocks
         const auto [send_params,
                     recv_params] = GetSendRecvParams(this, domain, direction, true);
         const auto [send_indrank, send_slice] = send_params;
         const auto [recv_indrank, recv_slice] = recv_params;
         const auto [send_ind, send_rank]      = send_indrank;
         const auto [recv_ind, recv_rank]      = recv_indrank;
-        if (send_rank < 0 and recv_rank < 0) {
+
+        // skip if no communication is necessary
+        const auto is_sending   = (send_rank >= 0);
+        const auto is_receiving = (recv_rank >= 0);
+        if (not is_sending and not is_receiving) {
           continue;
         }
-        const auto send_dir_tag = mpi::PrtlSendTag<D>::dir2tag(direction);
-        const auto nsend        = npart_per_tag[send_dir_tag];
-        const auto send_pmin    = tag_offset[send_dir_tag];
-        const auto send_pmax    = tag_offset[send_dir_tag] + nsend;
-        const auto recv_count = comm::CommunicateParticles<M::Dim, M::CoordType>(
-          species,
-          send_rank,
-          recv_rank,
-          { send_pmin, send_pmax },
-          index_last);
-        if (recv_count > 0) {
-          if constexpr (D == Dim::_1D) {
-            int shift_in_x1 { 0 };
-            if ((-direction)[0] == -1) {
-              shift_in_x1 = -subdomain(recv_ind).mesh.n_active(in::x1);
-            } else if ((-direction)[0] == 1) {
-              shift_in_x1 = domain.mesh.n_active(in::x1);
-            }
-            auto& this_tag     = species.tag;
-            auto& this_i1      = species.i1;
-            auto& this_i1_prev = species.i1_prev;
-            Kokkos::parallel_for(
-              "CommunicateParticles",
-              recv_count,
-              Lambda(index_t p) {
-                this_tag(index_last + p)      = ParticleTag::alive;
-                this_i1(index_last + p)      += shift_in_x1;
-                this_i1_prev(index_last + p) += shift_in_x1;
-              });
-          } else if constexpr (D == Dim::_2D) {
-            int shift_in_x1 { 0 }, shift_in_x2 { 0 };
-            if ((-direction)[0] == -1) {
-              shift_in_x1 = -subdomain(recv_ind).mesh.n_active(in::x1);
-            } else if ((-direction)[0] == 1) {
-              shift_in_x1 = domain.mesh.n_active()[0];
-            }
-            if ((-direction)[1] == -1) {
-              shift_in_x2 = -subdomain(recv_ind).mesh.n_active(in::x2);
-            } else if ((-direction)[1] == 1) {
-              shift_in_x2 = domain.mesh.n_active(in::x2);
-            }
-            auto& this_tag     = species.tag;
-            auto& this_i1      = species.i1;
-            auto& this_i2      = species.i2;
-            auto& this_i1_prev = species.i1_prev;
-            auto& this_i2_prev = species.i2_prev;
-            Kokkos::parallel_for(
-              "CommunicateParticles",
-              recv_count,
-              Lambda(index_t p) {
-                this_tag(index_last + p)      = ParticleTag::alive;
-                this_i1(index_last + p)      += shift_in_x1;
-                this_i2(index_last + p)      += shift_in_x2;
-                this_i1_prev(index_last + p) += shift_in_x1;
-                this_i2_prev(index_last + p) += shift_in_x2;
-              });
-          } else if constexpr (D == Dim::_3D) {
-            int shift_in_x1 { 0 }, shift_in_x2 { 0 }, shift_in_x3 { 0 };
-            if ((-direction)[0] == -1) {
-              shift_in_x1 = -subdomain(recv_ind).mesh.n_active(in::x1);
-            } else if ((-direction)[0] == 1) {
-              shift_in_x1 = domain.mesh.n_active(in::x1);
-            }
-            if ((-direction)[1] == -1) {
-              shift_in_x2 = -subdomain(recv_ind).mesh.n_active(in::x2);
-            } else if ((-direction)[1] == 1) {
-              shift_in_x2 = domain.mesh.n_active(in::x2);
-            }
-            if ((-direction)[2] == -1) {
-              shift_in_x3 = -subdomain(recv_ind).mesh.n_active(in::x3);
-            } else if ((-direction)[2] == 1) {
-              shift_in_x3 = domain.mesh.n_active(in::x3);
-            }
-            auto& this_tag     = species.tag;
-            auto& this_i1      = species.i1;
-            auto& this_i2      = species.i2;
-            auto& this_i3      = species.i3;
-            auto& this_i1_prev = species.i1_prev;
-            auto& this_i2_prev = species.i2_prev;
-            auto& this_i3_prev = species.i3_prev;
-            Kokkos::parallel_for(
-              "CommunicateParticles",
-              recv_count,
-              Lambda(index_t p) {
-                this_tag(index_last + p)      = ParticleTag::alive;
-                this_i1(index_last + p)      += shift_in_x1;
-                this_i2(index_last + p)      += shift_in_x2;
-                this_i3(index_last + p)      += shift_in_x3;
-                this_i1_prev(index_last + p) += shift_in_x1;
-                this_i2_prev(index_last + p) += shift_in_x2;
-                this_i3_prev(index_last + p) += shift_in_x3;
-              });
-          }
-          index_last += recv_count;
-          species.set_npart(index_last);
-        }
+        dirs_to_comm.push_back(direction);
+        send_ranks.push_back(send_rank);
+        recv_ranks.push_back(recv_rank);
+        send_inds.push_back(send_ind);
+        recv_inds.push_back(recv_ind);
 
-        Kokkos::deep_copy(
-          Kokkos::subview(species.tag, std::make_pair(send_pmin, send_pmax)),
-          ParticleTag::dead);
-      }
-      timers->stop("Communications");
-      // !TODO: maybe there is a way to not sort twice
-      timers->start("Sorting");
+        // record the # of particles to-be-sent
+        const auto nsend = npptag_vec[tag_send];
+
+        // request the # of particles to-be-received ...
+        // ... and send the # of particles to-be-sent
+        std::size_t nrecv = 0;
+        comm::ParticleSendRecvCount(send_rank, recv_rank, nsend, nrecv);
+        npart_recv                    += nrecv;
+        npptag_recv_vec[tag_recv - 2]  = nrecv;
+
+        raise::ErrorIf((npart + npart_recv) >= species.maxnpart(),
+                       "Too many particles to receive (cannot fit into maxptl)",
+                       HERE);
+
+        // if sending, record displacements to apply before
+        // ... tag_send - 2: because we only shift tags > 2 (i.e. no dead/alive)
+        if (is_sending) {
+          if constexpr (D == Dim::_1D || D == Dim::_2D || D == Dim::_3D) {
+            if (direction[0] == -1) {
+              // sending backwards in x1 (add sx1 of target meshblock)
+              shifts_in_x1_h(tag_send - 2) = subdomain(send_ind).mesh.n_active(
+                in::x1);
+            } else if (direction[0] == 1) {
+              // sending forward in x1 (subtract sx1 of source meshblock)
+              shifts_in_x1_h(tag_send - 2) = -domain.mesh.n_active(in::x1);
+            }
+          }
+          if constexpr (D == Dim::_2D || D == Dim::_3D) {
+            if (direction[1] == -1) {
+              shifts_in_x2_h(tag_send - 2) = subdomain(send_ind).mesh.n_active(
+                in::x2);
+            } else if (direction[1] == 1) {
+              shifts_in_x2_h(tag_send - 2) = -domain.mesh.n_active(in::x2);
+            }
+          }
+          if constexpr (D == Dim::_3D) {
+            if (direction[2] == -1) {
+              shifts_in_x3_h(tag_send - 2) = subdomain(send_ind).mesh.n_active(
+                in::x3);
+            } else if (direction[2] == 1) {
+              shifts_in_x3_h(tag_send - 2) = -domain.mesh.n_active(in::x3);
+            }
+          }
+        }
+      } // end directions loop
+
+      Kokkos::deep_copy(shifts_in_x1, shifts_in_x1_h);
+      Kokkos::deep_copy(shifts_in_x2, shifts_in_x2_h);
+      Kokkos::deep_copy(shifts_in_x3, shifts_in_x3_h);
+
+      array_t<std::size_t*> outgoing_indices { "outgoing_indices",
+                                               npart - npart_alive };
+      // clang-format off
+      Kokkos::parallel_for(
+        "PrepareOutgoingPrtls",
+        species.rangeActiveParticles(),
+        kernel::comm::PrepareOutgoingPrtls_kernel<M::Dim>(
+            shifts_in_x1, shifts_in_x2, shifts_in_x3,
+            outgoing_indices,
+            npart, npart_alive, npart_dead, ntags,
+            species.i1, species.i1_prev, 
+            species.i2, species.i2_prev,
+            species.i3, species.i3_prev,
+            species.tag, tag_offsets)
+      );
+      // clang-format on
+
+      comm::CommunicateParticles<M::Dim, M::CoordType>(species,
+                                                       outgoing_indices,
+                                                       tag_offsets,
+                                                       npptag_vec,
+                                                       npptag_recv_vec,
+                                                       send_ranks,
+                                                       recv_ranks,
+                                                       dirs_to_comm);
       species.set_unsorted();
-      species.SortByTags();
-      timers->stop("Sorting");
+    } // end species loop
+#else
+    (void)domain;
 #endif
+  }
+
+  template <SimEngine::type S, class M>
+  void Metadomain<S, M>::RemoveDeadParticles(Domain<S, M>& domain) {
+    for (auto& species : domain.species) {
+      species.RemoveDead();
     }
   }
 

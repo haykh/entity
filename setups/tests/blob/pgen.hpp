@@ -10,107 +10,89 @@
 #include "archetypes/energy_dist.h"
 #include "archetypes/particle_injector.h"
 #include "archetypes/problem_generator.h"
-#include "archetypes/spatial_dist.h"
+#include "framework/domain/domain.h"
 #include "framework/domain/metadomain.h"
-
-#include <vector>
 
 namespace user {
   using namespace ntt;
 
   template <SimEngine::type S, class M>
-  struct Beam : public arch::EnergyDistribution<S, M> {
-    Beam(const M&                   metric,
-         const std::vector<real_t>& v1_vec,
-         const std::vector<real_t>& v2_vec)
-      : arch::EnergyDistribution<S, M> { metric } {
-      std::copy(v1_vec.begin(), v1_vec.end(), v1);
-      std::copy(v2_vec.begin(), v2_vec.end(), v2);
-    }
+  struct CounterstreamEnergyDist : public arch::EnergyDistribution<S, M> {
+    CounterstreamEnergyDist(const M& metric, real_t v_max)
+      : arch::EnergyDistribution<S, M> { metric }
+      , v_max { v_max } {}
 
-    Inline void operator()(const coord_t<M::Dim>&,
-                           vec_t<Dim::_3D>& v_Ph,
-                           unsigned short   sp) const override {
-      if (sp == 1) {
-        v_Ph[0] = v1[0];
-        v_Ph[1] = v1[1];
-        v_Ph[2] = v1[2];
-      } else {
-        v_Ph[0] = v2[0];
-        v_Ph[1] = v2[1];
-        v_Ph[2] = v2[2];
-      }
+    Inline void operator()(const coord_t<M::Dim>& x_Ph,
+                           vec_t<Dim::_3D>&       v,
+                           unsigned short         sp) const override {
+      v[0] = v_max;
     }
 
   private:
-    vec_t<Dim::_3D> v1;
-    vec_t<Dim::_3D> v2;
+    const real_t v_max;
   };
 
   template <SimEngine::type S, class M>
-  struct PointDistribution : public arch::SpatialDistribution<S, M> {
-    PointDistribution(const M&                   metric,
-                      const std::vector<real_t>& xi_min,
-                      const std::vector<real_t>& xi_max)
-      : arch::SpatialDistribution<S, M> { metric } {
-      std::copy(xi_min.begin(), xi_min.end(), x_min);
-      std::copy(xi_max.begin(), xi_max.end(), x_max);
-    }
+  struct GaussianDist : public arch::SpatialDistribution<S, M> {
+    GaussianDist(const M& metric, real_t x1c, real_t x2c, real_t dr)
+      : arch::SpatialDistribution<S, M> { metric }
+      , x1c { x1c }
+      , x2c { x2c }
+      , dr { dr } {}
 
+    // to properly scale the number density, the probability should be normalized to 1
     Inline auto operator()(const coord_t<M::Dim>& x_Ph) const -> real_t override {
-      auto fill = true;
-      for (auto d = 0u; d < M::Dim; ++d) {
-        fill &= x_Ph[d] > x_min[d] and x_Ph[d] < x_max[d];
+      if (math::abs(x_Ph[0] - x1c) < dr && math::abs(x_Ph[1] - x2c) < dr) {
+        return 1.0;
+      } else {
+        return 0.0;
       }
-      return fill ? ONE : ZERO;
     }
 
   private:
-    tuple_t<real_t, M::Dim> x_min;
-    tuple_t<real_t, M::Dim> x_max;
+    const real_t x1c, x2c, dr;
   };
 
   template <SimEngine::type S, class M>
   struct PGen : public arch::ProblemGenerator<S, M> {
+
     // compatibility traits for the problem generator
-    static constexpr auto engines { traits::compatible_with<SimEngine::SRPIC>::value };
-    static constexpr auto metrics {
-      traits::compatible_with<Metric::Minkowski, Metric::Spherical, Metric::QSpherical>::value
-    };
-    static constexpr auto dimensions {
-      traits::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value
-    };
+    static constexpr auto engines = traits::compatible_with<SimEngine::SRPIC>::value;
+    static constexpr auto metrics = traits::compatible_with<Metric::Minkowski>::value;
+    static constexpr auto dimensions =
+      traits::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value;
 
     // for easy access to variables in the child class
     using arch::ProblemGenerator<S, M>::D;
     using arch::ProblemGenerator<S, M>::C;
     using arch::ProblemGenerator<S, M>::params;
 
-    const std::vector<real_t> xi_min;
-    const std::vector<real_t> xi_max;
-    const std::vector<real_t> v1;
-    const std::vector<real_t> v2;
+    const real_t temp_1, x1c, x2c, dr, v_max;
 
-    inline PGen(const SimulationParams& p, const Metadomain<S, M>& m)
-      : arch::ProblemGenerator<S, M>(p)
-      , xi_min { p.template get<std::vector<real_t>>("setup.xi_min") }
-      , xi_max { p.template get<std::vector<real_t>>("setup.xi_max") }
-      , v1 { p.template get<std::vector<real_t>>("setup.v1") }
-      , v2 { p.template get<std::vector<real_t>>("setup.v2") } {}
+    inline PGen(const SimulationParams& p, const Metadomain<S, M>& global_domain)
+      : arch::ProblemGenerator<S, M> { p }
+      , temp_1 { p.template get<real_t>("setup.temp_1") }
+      , x1c { p.template get<real_t>("setup.x1c") }
+      , x2c { p.template get<real_t>("setup.x2c") }
+      , v_max { p.template get<real_t>("setup.v_max") }
+      , dr { p.template get<real_t>("setup.dr") } {}
 
-    inline void InitPrtls(Domain<S, M>& domain) {
-      const auto energy_dist  = Beam<S, M>(domain.mesh.metric, v1, v2);
-      const auto spatial_dist = PointDistribution<S, M>(domain.mesh.metric,
-                                                        xi_min,
-                                                        xi_max);
-      const auto injector = arch::NonUniformInjector<S, M, Beam, PointDistribution>(
-        energy_dist,
-        spatial_dist,
-        { 1, 2 });
+    inline void InitPrtls(Domain<S, M>& local_domain) {
+      const auto energy_dist = CounterstreamEnergyDist<S, M>(local_domain.mesh.metric,
+                                                             v_max);
+      const auto spatial_dist = GaussianDist<S, M>(local_domain.mesh.metric,
+                                                   x1c,
+                                                   x2c,
+                                                   dr);
+      const auto injector =
+        arch::NonUniformInjector<S, M, CounterstreamEnergyDist, GaussianDist>(
+          energy_dist,
+          spatial_dist,
+          { 1, 2 });
 
-      arch::InjectNonUniform<S, M, arch::NonUniformInjector<S, M, Beam, PointDistribution>>(
+      arch::InjectNonUniform<S, M, arch::NonUniformInjector<S, M, CounterstreamEnergyDist, GaussianDist>>(
         params,
-        domain,
+        local_domain,
         injector,
         1.0);
     }

@@ -1,31 +1,31 @@
 [simulation]
-  name = "magnetosphere"
-  engine = "srpic"
+  name    = "magnetosphere"
+  engine  = "srpic"
   runtime = 60.0
 
 [grid]
   resolution = [2048, 1024]
-  extent = [[1.0, 50.0]]
+  extent     = [[1.0, 50.0]]
 
   [grid.metric]
     metric = "qspherical"
 
   [grid.boundaries]
-    fields = [["ATMOSPHERE", "ABSORB"]]
+    fields    = [["ATMOSPHERE", "ABSORB"]]
     particles = [["ATMOSPHERE", "ABSORB"]]
-    
+
     [grid.boundaries.absorb]
       ds = 1.0
 
     [grid.boundaries.atmosphere]
       temperature = 0.1
-      density = 10.0
-      height = 0.02
-      species = [1, 2]
-      ds = 2.0
-    
+      density     = 10.0
+      height      = 0.02
+      species     = [1, 2]
+      ds          = 2.0
+
 [scales]
-  larmor0 = 2e-5
+  larmor0    = 2e-5
   skindepth0 = 0.01
 
 [algorithms]
@@ -36,37 +36,37 @@
 
   [algorithms.gca]
     e_ovr_b_max = 0.9
-    larmor_max = 1.0
+    larmor_max  = 1.0
 
 [particles]
-  ppc0 = 5.0
-  use_weights = true
-  sort_interval = 100
+  ppc0           = 5.0
+  use_weights    = true
+  clear_interval = 100
 
   [[particles.species]]
-  label = "e-"
-  mass = 1.0
-  charge = -1.0
-  maxnpart = 1e8
-  pusher = "Boris,GCA"
+    label    = "e-"
+    mass     = 1.0
+    charge   = -1.0
+    maxnpart = 1e8
+    pusher   = "Boris,GCA"
 
   [[particles.species]]
-  label = "e+"
-  mass = 1.0
-  charge = 1.0
-  maxnpart = 1e8
-  pusher = "Boris,GCA"
+    label    = "e+"
+    mass     = 1.0
+    charge   = 1.0
+    maxnpart = 1e8
+    pusher   = "Boris,GCA"
 
 [setup]
-  Bsurf = 1.0
+  Bsurf  = 1.0
   period = 60.0
 
 [output]
   format = "hdf5"
-  
+
   [output.fields]
     interval_time = 0.1
-    quantities = ["N_1", "N_2", "E", "B", "T00"]
+    quantities    = ["N_1", "N_2", "E", "B", "T00"]
 
   [output.particles]
     enable = false
@@ -75,5 +75,5 @@
     enable = false
 
 [diagnostics]
-  interval = 50
+  interval       = 50
   colored_stdout = true

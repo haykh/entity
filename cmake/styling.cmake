@@ -23,20 +23,17 @@ if(NOT WIN32)
   set(StrikeEnd "${Esc}[0m")
 endif()
 
-# message("This is normal")
-# message("${Red}This is Red${ColorReset}")
-# message("${Green}This is Green${ColorReset}")
-# message("${Yellow}This is Yellow${ColorReset}")
-# message("${Blue}This is Blue${ColorReset}")
-# message("${Magenta}This is Magenta${ColorReset}")
-# message("${Cyan}This is Cyan${ColorReset}")
-# message("${White}This is White${ColorReset}")
-# message("${BoldRed}This is BoldRed${ColorReset}")
-# message("${BoldGreen}This is BoldGreen${ColorReset}")
-# message("${BoldYellow}This is BoldYellow${ColorReset}")
-# message("${BoldBlue}This is BoldBlue${ColorReset}")
+# message("This is normal") message("${Red}This is Red${ColorReset}")
+# message("${Green}This is Green${ColorReset}") message("${Yellow}This is
+# Yellow${ColorReset}") message("${Blue}This is Blue${ColorReset}")
+# message("${Magenta}This is Magenta${ColorReset}") message("${Cyan}This is
+# Cyan${ColorReset}") message("${White}This is White${ColorReset}")
+# message("${BoldRed}This is BoldRed${ColorReset}") message("${BoldGreen}This is
+# BoldGreen${ColorReset}") message("${BoldYellow}This is
+# BoldYellow${ColorReset}") message("${BoldBlue}This is BoldBlue${ColorReset}")
 # message("${BoldMagenta}This is BoldMagenta${ColorReset}")
-# message("${BoldCyan}This is BoldCyan${ColorReset}")
-# message("${BoldWhite}This is BoldWhite\n\n${ColorReset}")
+# message("${BoldCyan}This is BoldCyan${ColorReset}") message("${BoldWhite}This
+# is BoldWhite\n\n${ColorReset}")
 
 # message()
+

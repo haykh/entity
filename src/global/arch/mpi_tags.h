@@ -7,6 +7,8 @@
  * @namespaces:
  *   - mpi::
  */
+#ifndef GLOBAL_ARCH_MPI_TAGS_H
+#define GLOBAL_ARCH_MPI_TAGS_H
 
 #include "global.h"
 
@@ -188,8 +190,13 @@ namespace mpi {
            tag;
   }
 
-  Inline auto SendTag(short tag, bool im1, bool ip1, bool jm1, bool jp1, bool km1, bool kp1)
-    -> short {
+  Inline auto SendTag(short tag,
+                      bool  im1,
+                      bool  ip1,
+                      bool  jm1,
+                      bool  jp1,
+                      bool  km1,
+                      bool  kp1) -> short {
     return ((im1 && jm1 && km1) * (PrtlSendTag<Dim::_3D>::im1_jm1_km1 - 1) +
             (im1 && jm1 && kp1) * (PrtlSendTag<Dim::_3D>::im1_jm1_kp1 - 1) +
             (im1 && jp1 && km1) * (PrtlSendTag<Dim::_3D>::im1_jp1_km1 - 1) +
@@ -226,3 +233,5 @@ namespace mpi {
            tag;
   }
 } // namespace mpi
+
+#endif // GLOBAL_ARCH_MPI_TAGS_H

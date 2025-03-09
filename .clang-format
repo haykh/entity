@@ -106,6 +106,8 @@ IncludeCategories:
     Priority: 4
   - Regex: '^"engines\/.*\.h"'
     Priority: 4
+  - Regex: '^"checkpoint\/.*\.h"'
+    Priority: 4
   - Regex: '^"output\/.*\.h"'
     Priority: 4
   - Regex: '^"archetypes\/.*\.h"'

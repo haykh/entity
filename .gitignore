@@ -51,6 +51,10 @@ venv/
 # CMake testing files
 Testing/
 
+tags
+.clangd
 .schema.json
 *_old/
 action-token
+*.vim
+ignore-*

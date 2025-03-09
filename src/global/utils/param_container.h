@@ -16,6 +16,11 @@
 #include "utils/formatting.h"
 #include "utils/log.h"
 
+#if defined(OUTPUT_ENABLED)
+  #include <adios2.h>
+  #include <adios2/cxx11/KokkosView.h>
+#endif
+
 #include <any>
 #include <ios>
 #include <map>
@@ -172,6 +177,10 @@ namespace prm {
       }
       return result.str();
     }
+
+#if defined(OUTPUT_ENABLED)
+    void write(adios2::IO& io) const;
+#endif
   };
 
 } // namespace prm

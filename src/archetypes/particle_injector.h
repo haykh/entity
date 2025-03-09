@@ -142,7 +142,7 @@ namespace arch {
     };
 
     using energy_dist_t  = Maxwellian<S, M>;
-    using spatial_dist_t = ReplenishDist<S, M, TargetDensityProfile>;
+    using spatial_dist_t = Replenish<S, M, TargetDensityProfile>;
     static_assert(M::is_metric, "M must be a metric class");
     static constexpr bool      is_nonuniform_injector { true };
     static constexpr Dimension D { M::Dim };
