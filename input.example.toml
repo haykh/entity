@@ -340,7 +340,7 @@
     # Field quantities to output:
     #   @type: array of strings
     #   @valid: fields: "E", "B", "J", "divE"
-    #   @valid: moments: "Rho", "Charge", "N", "Nppc", "T0i", "Tij"
+    #   @valid: moments: "Rho", "Charge", "N", "Nppc", "T0i", "Tij", "Vi"
     #   @valid: for GR: "D", "H", "divD", "A"
     #   @default: []
     #   @note: For T, you can use unspecified indices, e.g., Tij, T0i, or specific ones, e.g., Ttt, T00, T02, T23

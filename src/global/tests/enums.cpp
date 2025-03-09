@@ -66,9 +66,9 @@ auto main() -> int {
   enum_str_t all_particle_pushers = { "boris", "vay", "photon", "none" };
   enum_str_t all_coolings         = { "synchrotron", "none" };
 
-  enum_str_t all_out_flds = { "e",      "dive", "d",    "divd",  "b",
-                              "h",      "j",    "a",    "t",     "rho",
-                              "charge", "n",    "nppc", "custom" };
+  enum_str_t all_out_flds = { "e",      "dive", "d",    "divd", "b",
+                              "h",      "j",    "a",    "t",    "rho",
+                              "charge", "n",    "nppc", "v",    "custom" };
 
   checkEnum<Coord>(all_coords);
   checkEnum<Metric>(all_metrics);

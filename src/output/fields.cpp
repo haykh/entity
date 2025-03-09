@@ -29,14 +29,21 @@ namespace out {
     } else {
       m_id = FldsID::Custom;
     }
+    // check compatibility
+    raise::ErrorIf(id() == FldsID::A and S != SimEngine::GRPIC,
+                   "Output of A_phi not supported for non-GRPIC",
+                   HERE);
+    raise::ErrorIf(id() == FldsID::V and S == SimEngine::GRPIC,
+                   "Output of bulk 3-vel not supported for GRPIC",
+                   HERE);
     // determine the species and components to output
     if (is_moment()) {
       species = InterpretSpecies(name);
     } else {
       species = {};
     }
-    if (is_field() || is_current()) {
-      // always write all the field/current components
+    if (is_field() || is_current() || id() == FldsID::V) {
+      // always write all the field/current/bulk vel components
       comp = { { 1 }, { 2 }, { 3 } };
     } else if (id() == FldsID::A) {
       // only write A3
@@ -44,6 +51,9 @@ namespace out {
     } else if (id() == FldsID::T) {
       // energy-momentum tensor
       comp = InterpretComponents({ name.substr(1, 1), name.substr(2, 1) });
+    } else if (id() == FldsID::V) {
+      // energy-momentum tensor
+      comp = InterpretComponents({ name.substr(1, 1) });
     } else {
       // scalar (Rho, divE, Custom, etc.)
       comp = {};

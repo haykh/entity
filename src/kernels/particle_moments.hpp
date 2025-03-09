@@ -14,6 +14,7 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
+#include "utils/comparators.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
 
@@ -40,8 +41,10 @@ namespace kernel {
     static_assert(M::is_metric, "M must be a metric class");
     static constexpr auto D = M::Dim;
 
-    static_assert((F == FldsID::Rho) || (F == FldsID::Charge) ||
-                    (F == FldsID::N) || (F == FldsID::Nppc) || (F == FldsID::T),
+    static_assert(!((S == SimEngine::GRPIC) && (F == FldsID::V)),
+                  "Bulk velocity not supported for GRPIC");
+    static_assert((F == FldsID::Rho) || (F == FldsID::Charge) || (F == FldsID::N) ||
+                    (F == FldsID::Nppc) || (F == FldsID::T) || (F == FldsID::V),
                   "Invalid field ID");
 
     const unsigned short     c1, c2;
@@ -89,8 +92,8 @@ namespace kernel {
                            std::size_t                        ni2,
                            real_t                             inv_n0,
                            unsigned short                     window)
-      : c1 { (components.size() == 2) ? components[0]
-                                      : static_cast<unsigned short>(0) }
+      : c1 { (components.size() > 0) ? components[0]
+                                     : static_cast<unsigned short>(0) }
       , c2 { (components.size() == 2) ? components[1]
                                       : static_cast<unsigned short>(0) }
       , Buff { scatter_buff }
@@ -200,9 +203,95 @@ namespace kernel {
             coeff *= u_Phys[c - 1];
           }
         }
+      } else if constexpr (F == FldsID::V) {
+        real_t          gamma { ZERO };
+        // for bulk 3vel (tetrad basis)
+        vec_t<Dim::_3D> u_Phys { ZERO };
+        if constexpr (M::CoordType == Coord::Cart) {
+          u_Phys[0] = ux1(p);
+          u_Phys[1] = ux2(p);
+          u_Phys[2] = ux3(p);
+        } else {
+          coord_t<M::PrtlDim> x_Code { ZERO };
+          x_Code[0] = static_cast<real_t>(i1(p)) + static_cast<real_t>(dx1(p));
+          x_Code[1] = static_cast<real_t>(i2(p)) + static_cast<real_t>(dx2(p));
+          if constexpr (D == Dim::_3D) {
+            x_Code[2] = static_cast<real_t>(i3(p)) + static_cast<real_t>(dx3(p));
+          } else {
+            x_Code[2] = phi(p);
+          }
+          metric.template transform_xyz<Idx::XYZ, Idx::T>(x_Code,
+                                                          { ux1(p), ux2(p), ux3(p) },
+                                                          u_Phys);
+        }
+        if (mass == ZERO) {
+          gamma = NORM(u_Phys[0], u_Phys[1], u_Phys[2]);
+        } else {
+          gamma = math::sqrt(ONE + NORM_SQR(u_Phys[0], u_Phys[1], u_Phys[2]));
+        }
+        // compute the corresponding moment
+        coeff = (mass == ZERO ? ONE : mass) * u_Phys[c1 - 1] / gamma;
       } else {
         // for other cases, use the `contrib` defined above
         coeff = contrib;
+      }
+
+      if constexpr (F == FldsID::V) {
+        real_t          gamma { ZERO };
+        // for stress-energy tensor
+        vec_t<Dim::_3D> u_Phys { ZERO };
+        if constexpr (S == SimEngine::SRPIC) {
+          // SR
+          // stress-energy tensor for SR is computed in the tetrad (hatted) basis
+          if constexpr (M::CoordType == Coord::Cart) {
+            u_Phys[0] = ux1(p);
+            u_Phys[1] = ux2(p);
+            u_Phys[2] = ux3(p);
+          } else {
+            static_assert(D != Dim::_1D, "non-Cartesian SRPIC 1D");
+            coord_t<M::PrtlDim> x_Code { ZERO };
+            x_Code[0] = static_cast<real_t>(i1(p)) + static_cast<real_t>(dx1(p));
+            x_Code[1] = static_cast<real_t>(i2(p)) + static_cast<real_t>(dx2(p));
+            if constexpr (D == Dim::_3D) {
+              x_Code[2] = static_cast<real_t>(i3(p)) + static_cast<real_t>(dx3(p));
+            } else {
+              x_Code[2] = phi(p);
+            }
+            metric.template transform_xyz<Idx::XYZ, Idx::T>(
+              x_Code,
+              { ux1(p), ux2(p), ux3(p) },
+              u_Phys);
+          }
+          if (mass == ZERO) {
+            gamma = NORM(u_Phys[0], u_Phys[1], u_Phys[2]);
+          } else {
+            gamma = math::sqrt(ONE + NORM_SQR(u_Phys[0], u_Phys[1], u_Phys[2]));
+          }
+        } else {
+          // GR
+          // stress-energy tensor for GR is computed in contravariant basis
+          static_assert(D != Dim::_1D, "GRPIC 1D");
+          coord_t<D> x_Code { ZERO };
+          x_Code[0] = static_cast<real_t>(i1(p)) + static_cast<real_t>(dx1(p));
+          x_Code[1] = static_cast<real_t>(i2(p)) + static_cast<real_t>(dx2(p));
+          if constexpr (D == Dim::_3D) {
+            x_Code[2] = static_cast<real_t>(i3(p)) + static_cast<real_t>(dx3(p));
+          }
+          vec_t<Dim::_3D> u_Cntrv { ZERO };
+          // compute u_i u^i for energy
+          metric.template transform<Idx::D, Idx::U>(x_Code,
+                                                    { ux1(p), ux2(p), ux3(p) },
+                                                    u_Cntrv);
+          gamma = u_Cntrv[0] * ux1(p) + u_Cntrv[1] * ux2(p) + u_Cntrv[2] * ux3(p);
+          if (mass == ZERO) {
+            gamma = math::sqrt(gamma);
+          } else {
+            gamma = math::sqrt(ONE + gamma);
+          }
+          metric.template transform<Idx::U, Idx::PU>(x_Code, u_Cntrv, u_Phys);
+        }
+        // compute the corresponding moment
+        coeff = u_Phys[c1 - 1] / gamma;
       }
 
       if constexpr (F != FldsID::Nppc) {
@@ -284,6 +373,79 @@ namespace kernel {
             }
           }
         }
+      }
+    }
+  };
+
+  template <Dimension D, unsigned short N>
+  class NormalizeVectorByRho_kernel {
+    const ndfield_t<D, N> Rho;
+    ndfield_t<D, N>       Vector;
+    const unsigned short  c_rho, c_v1, c_v2, c_v3;
+
+  public:
+    NormalizeVectorByRho_kernel(const ndfield_t<D, N>& rho,
+                                const ndfield_t<D, N>& vector,
+                                unsigned short         crho,
+                                unsigned short         cv1,
+                                unsigned short         cv2,
+                                unsigned short         cv3)
+      : Rho { rho }
+      , Vector { vector }
+      , c_rho { crho }
+      , c_v1 { cv1 }
+      , c_v2 { cv2 }
+      , c_v3 { cv3 } {
+      raise::ErrorIf(c_rho >= N or c_v1 >= N or c_v2 >= N or c_v3 >= N,
+                     "Invalid component index",
+                     HERE);
+      raise::ErrorIf(c_rho == c_v1 or c_rho == c_v2 or c_rho == c_v3,
+                     "Invalid component index",
+                     HERE);
+      raise::ErrorIf(c_v1 == c_v2 or c_v1 == c_v3 or c_v2 == c_v3,
+                     "Invalid component index",
+                     HERE);
+    }
+
+    Inline void operator()(index_t i1) const {
+      if constexpr (D == Dim::_1D) {
+        if (not cmp::AlmostZero(Rho(i1, c_rho))) {
+          Vector(i1, c_v1) /= Rho(i1, c_rho);
+          Vector(i1, c_v2) /= Rho(i1, c_rho);
+          Vector(i1, c_v3) /= Rho(i1, c_rho);
+        }
+      } else {
+        raise::KernelError(
+          HERE,
+          "1D implementation of NormalizeVectorByRho_kernel called for non-1D");
+      }
+    }
+
+    Inline void operator()(index_t i1, index_t i2) const {
+      if constexpr (D == Dim::_2D) {
+        if (not cmp::AlmostZero(Rho(i1, i2, c_rho))) {
+          Vector(i1, i2, c_v1) /= Rho(i1, i2, c_rho);
+          Vector(i1, i2, c_v2) /= Rho(i1, i2, c_rho);
+          Vector(i1, i2, c_v3) /= Rho(i1, i2, c_rho);
+        }
+      } else {
+        raise::KernelError(
+          HERE,
+          "2D implementation of NormalizeVectorByRho_kernel called for non-2D");
+      }
+    }
+
+    Inline void operator()(index_t i1, index_t i2, index_t i3) const {
+      if constexpr (D == Dim::_3D) {
+        if (not cmp::AlmostZero(Rho(i1, i2, i3, c_rho))) {
+          Vector(i1, i2, i3, c_v1) /= Rho(i1, i2, i3, c_rho);
+          Vector(i1, i2, i3, c_v2) /= Rho(i1, i2, i3, c_rho);
+          Vector(i1, i2, i3, c_v3) /= Rho(i1, i2, i3, c_rho);
+        }
+      } else {
+        raise::KernelError(
+          HERE,
+          "3D implementation of NormalizeVectorByRho_kernel called for non-3D");
       }
     }
   };

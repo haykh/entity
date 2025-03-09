@@ -328,6 +328,14 @@ namespace ntt {
                                                  {},
                                                  local_domain->fields.bckp,
                                                  c);
+            } else if (fld.id() == FldsID::V) {
+              ComputeMoments<S, M, FldsID::V>(params,
+                                                 local_domain->mesh,
+                                                 local_domain->species,
+                                                 fld.species,
+                                                 fld.comp[0],
+                                                 local_domain->fields.bckp,
+                                                 c);
             } else {
               raise::Error("Wrong moment requested for output", HERE);
             }
@@ -357,16 +365,35 @@ namespace ntt {
           if (fld.is_moment()) {
             for (auto i = 0; i < 3; ++i) {
               const auto c = static_cast<unsigned short>(addresses[i]);
-              raise::ErrorIf(fld.comp[i].size() != 2,
-                             "Wrong # of components requested for moment",
-                             HERE);
-              ComputeMoments<S, M, FldsID::T>(params,
-                                              local_domain->mesh,
-                                              local_domain->species,
-                                              fld.species,
-                                              fld.comp[i],
-                                              local_domain->fields.bckp,
-                                              c);
+              if (fld.id() == FldsID::T) {
+                raise::ErrorIf(fld.comp[i].size() != 2,
+                               "Wrong # of components requested for moment",
+                               HERE);
+                ComputeMoments<S, M, FldsID::T>(params,
+                                                local_domain->mesh,
+                                                local_domain->species,
+                                                fld.species,
+                                                fld.comp[i],
+                                                local_domain->fields.bckp,
+                                                c);
+              } else if (fld.id() == FldsID::V) {
+                raise::ErrorIf(fld.comp[i].size() != 1,
+                               "Wrong # of components requested for 3vel",
+                               HERE);
+                if constexpr (S == SimEngine::SRPIC) {
+                  ComputeMoments<S, M, FldsID::V>(params,
+                                                  local_domain->mesh,
+                                                  local_domain->species,
+                                                  fld.species,
+                                                  fld.comp[i],
+                                                  local_domain->fields.bckp,
+                                                  c);
+                } else {
+                  raise::Error("Bulk velocity not supported for GRPIC", HERE);
+                }
+              } else {
+                raise::Error("Wrong moment requested for output", HERE);
+              }
             }
             raise::ErrorIf(addresses[1] - addresses[0] !=
                              addresses[2] - addresses[1],
@@ -375,6 +402,28 @@ namespace ntt {
             SynchronizeFields(*local_domain,
                               Comm::Bckp,
                               { addresses[0], addresses[2] + 1 });
+            if constexpr (S == SimEngine::SRPIC) {
+              if (fld.id() == FldsID::V) {
+                // normalize 3vel * rho (combuted above) by rho
+                ComputeMoments<S, M, FldsID::Rho>(params,
+                                                  local_domain->mesh,
+                                                  local_domain->species,
+                                                  fld.species,
+                                                  {},
+                                                  local_domain->fields.bckp,
+                                                  0u);
+                SynchronizeFields(*local_domain, Comm::Bckp, { 0, 1 });
+                Kokkos::parallel_for("NormalizeVectorByRho",
+                                     local_domain->mesh.rangeActiveCells(),
+                                     kernel::NormalizeVectorByRho_kernel<M::Dim, 6>(
+                                       local_domain->fields.bckp,
+                                       local_domain->fields.bckp,
+                                       0,
+                                       addresses[0],
+                                       addresses[1],
+                                       addresses[2]));
+              }
+            }
           } else {
             // copy fields to bckp (:, 0, 1, 2)
             // if as-is specified ==> copy directly to 3, 4, 5
