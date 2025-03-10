@@ -87,7 +87,13 @@ namespace ntt {
     const auto species_to_write = params.template get<std::vector<unsigned short>>(
       "output.particles.species");
     g_writer.defineFieldOutputs(S, all_fields_to_write);
-    g_writer.defineParticleOutputs(M::PrtlDim, species_to_write);
+
+    Dimension dim = M::PrtlDim;
+    if constexpr (M::CoordType != Coord::Cart) {
+      dim = Dim::_3D;
+    }
+    g_writer.defineParticleOutputs(dim, species_to_write);
+
     // spectra write all particle species
     std::vector<unsigned short> spectra_species {};
     for (const auto& sp : species_params()) {
@@ -176,6 +182,39 @@ namespace ntt {
       Kokkos::deep_copy(
         Kokkos::subview(fld_to, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, to),
         Kokkos::subview(fld_from, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, from));
+    }
+  }
+
+  template <SimEngine::type S, class M>
+  void ComputeVectorPotential(ndfield_t<M::Dim, 6>& buffer,
+                              ndfield_t<M::Dim, 6>& EM,
+                              unsigned short        buff_idx,
+                              const Mesh<M>         mesh) {
+    if constexpr (M::Dim == Dim::_2D) {
+      const auto i2_min = mesh.i_min(in::x2);
+      // !TODO: this is quite slow
+      Kokkos::parallel_for(
+        "ComputeVectorPotential",
+        mesh.rangeActiveCells(),
+        Lambda(index_t i, index_t j) {
+          const real_t i_ { static_cast<real_t>(static_cast<int>(i) - (N_GHOSTS)) };
+          const auto   k_min = (i2_min - (N_GHOSTS)) + 1;
+          const auto   k_max = (j - (N_GHOSTS));
+          real_t       A3    = ZERO;
+          for (auto k { k_min }; k <= k_max; ++k) {
+            real_t k_ = static_cast<real_t>(k);
+            real_t sqrt_detH_ij1 { mesh.metric.sqrt_det_h({ i_, k_ - HALF }) };
+            real_t sqrt_detH_ij2 { mesh.metric.sqrt_det_h({ i_, k_ + HALF }) };
+            auto   k1 { k + N_GHOSTS };
+            A3 += HALF * (sqrt_detH_ij1 * EM(i, k1 - 1, em::bx1) +
+                          sqrt_detH_ij2 * EM(i, k1, em::bx1));
+          }
+          buffer(i, j, buff_idx) = A3;
+        });
+    } else {
+      raise::KernelError(
+        HERE,
+        "ComputeVectorPotential: 2D implementation called for D != 2");
     }
   }
 
@@ -339,6 +378,17 @@ namespace ntt {
                                 *local_domain);
             } else {
               raise::Error("Custom output requested but no function provided",
+                           HERE);
+            }
+          } else if (fld.is_vpotential()) {
+            if (S == SimEngine::GRPIC && M::Dim == Dim::_2D) {
+              const auto c = static_cast<unsigned short>(addresses.back());
+              ComputeVectorPotential<S, M>(local_domain->fields.bckp,
+                                           local_domain->fields.em,
+                                           c,
+                                           local_domain->mesh);
+            } else {
+              raise::Error("Vector potential can only be computed for GRPIC in 2D",
                            HERE);
             }
           } else {

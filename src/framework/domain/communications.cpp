@@ -36,10 +36,10 @@ namespace ntt {
   using comm_params_t = std::pair<address_t, std::vector<range_tuple_t>>;
 
   template <SimEngine::type S, class M>
-  auto GetSendRecvRanks(Metadomain<S, M>*        metadomain,
-                        Domain<S, M>&            domain,
-                        dir::direction_t<M::Dim> direction)
-    -> std::pair<address_t, address_t> {
+  auto GetSendRecvRanks(
+    Metadomain<S, M>*        metadomain,
+    Domain<S, M>&            domain,
+    dir::direction_t<M::Dim> direction) -> std::pair<address_t, address_t> {
     Domain<S, M>* send_to_nghbr_ptr   = nullptr;
     Domain<S, M>* recv_from_nghbr_ptr = nullptr;
     // set pointers to the correct send/recv domains
@@ -119,11 +119,11 @@ namespace ntt {
   }
 
   template <SimEngine::type S, class M>
-  auto GetSendRecvParams(Metadomain<S, M>*        metadomain,
-                         Domain<S, M>&            domain,
-                         dir::direction_t<M::Dim> direction,
-                         bool                     synchronize)
-    -> std::pair<comm_params_t, comm_params_t> {
+  auto GetSendRecvParams(
+    Metadomain<S, M>*        metadomain,
+    Domain<S, M>&            domain,
+    dir::direction_t<M::Dim> direction,
+    bool synchronize) -> std::pair<comm_params_t, comm_params_t> {
     const auto [send_indrank,
                 recv_indrank] = GetSendRecvRanks(metadomain, domain, direction);
     const auto [send_ind, send_rank] = send_indrank;
@@ -206,11 +206,11 @@ namespace ntt {
 
   template <SimEngine::type S, class M>
   void Metadomain<S, M>::CommunicateFields(Domain<S, M>& domain, CommTags tags) {
-    const auto comm_fields = (tags & Comm::E) || (tags & Comm::B) ||
-                             (tags & Comm::J) || (tags & Comm::D) ||
-                             (tags & Comm::D0) || (tags & Comm::B0);
-    const bool comm_em = (tags & Comm::E) || (tags & Comm::B) || (tags & Comm::D);
-    const bool comm_em0 = (tags & Comm::B0) || (tags & Comm::D0);
+    const auto comm_fields = (tags & Comm::E) or (tags & Comm::B) or
+                             (tags & Comm::J) or (tags & Comm::D) or
+                             (tags & Comm::D0) or (tags & Comm::B0);
+    const bool comm_em = (tags & Comm::E) or (tags & Comm::B) || (tags & Comm::D);
+    const bool comm_em0 = (tags & Comm::B0) or (tags & Comm::D0);
     const bool comm_j   = (tags & Comm::J);
     raise::ErrorIf(not comm_fields, "CommunicateFields called with no task", HERE);
 
@@ -302,20 +302,46 @@ namespace ntt {
                                             recv_slice,
                                             comp_range_fld,
                                             false);
+          // @HACK_GR_1.2.0 -- this has to be done carefully
+          comm::CommunicateField<M::Dim, 6>(domain.index(),
+                                            domain.fields.aux,
+                                            domain.fields.aux,
+                                            send_ind,
+                                            recv_ind,
+                                            send_rank,
+                                            recv_rank,
+                                            send_slice,
+                                            recv_slice,
+                                            comp_range_fld,
+                                            false);
         }
-      }
-      if (comm_j) {
-        comm::CommunicateField<M::Dim, 3>(domain.index(),
-                                          domain.fields.cur,
-                                          domain.fields.cur,
-                                          send_ind,
-                                          recv_ind,
-                                          send_rank,
-                                          recv_rank,
-                                          send_slice,
-                                          recv_slice,
-                                          comp_range_cur,
-                                          false);
+        if (comm_j) {
+          comm::CommunicateField<M::Dim, 3>(domain.index(),
+                                            domain.fields.cur0,
+                                            domain.fields.cur0,
+                                            send_ind,
+                                            recv_ind,
+                                            send_rank,
+                                            recv_rank,
+                                            send_slice,
+                                            recv_slice,
+                                            comp_range_cur,
+                                            false);
+        }
+      } else {
+        if (comm_j) {
+          comm::CommunicateField<M::Dim, 3>(domain.index(),
+                                            domain.fields.cur,
+                                            domain.fields.cur,
+                                            send_ind,
+                                            recv_ind,
+                                            send_rank,
+                                            recv_rank,
+                                            send_slice,
+                                            recv_slice,
+                                            comp_range_cur,
+                                            false);
+        }
       }
     }
   }
@@ -435,17 +461,31 @@ namespace ntt {
         continue;
       }
       if (comm_j) {
-        comm::CommunicateField<M::Dim, 3>(domain.index(),
-                                          domain.fields.cur,
-                                          domain.fields.buff,
-                                          send_ind,
-                                          recv_ind,
-                                          send_rank,
-                                          recv_rank,
-                                          send_slice,
-                                          recv_slice,
-                                          comp_range_cur,
-                                          synchronize);
+        if constexpr (S == SimEngine::GRPIC) {
+          comm::CommunicateField<M::Dim, 3>(domain.index(),
+                                            domain.fields.cur0,
+                                            domain.fields.buff,
+                                            send_ind,
+                                            recv_ind,
+                                            send_rank,
+                                            recv_rank,
+                                            send_slice,
+                                            recv_slice,
+                                            comp_range_cur,
+                                            synchronize);
+        } else {
+          comm::CommunicateField<M::Dim, 3>(domain.index(),
+                                            domain.fields.cur,
+                                            domain.fields.buff,
+                                            send_ind,
+                                            recv_ind,
+                                            send_rank,
+                                            recv_rank,
+                                            send_slice,
+                                            recv_slice,
+                                            comp_range_cur,
+                                            synchronize);
+        }
       }
       if (comm_bckp) {
         comm::CommunicateField<M::Dim, 6>(domain.index(),
@@ -475,10 +515,17 @@ namespace ntt {
       }
     }
     if (comm_j) {
-      AddBufferedFields<M::Dim, 3>(domain.fields.cur,
-                                   domain.fields.buff,
-                                   domain.mesh.rangeActiveCells(),
-                                   comp_range_cur);
+      if constexpr (S == SimEngine::GRPIC) {
+        AddBufferedFields<M::Dim, 3>(domain.fields.cur0,
+                                     domain.fields.buff,
+                                     domain.mesh.rangeActiveCells(),
+                                     comp_range_cur);
+      } else {
+        AddBufferedFields<M::Dim, 3>(domain.fields.cur,
+                                     domain.fields.buff,
+                                     domain.mesh.rangeActiveCells(),
+                                     comp_range_cur);
+      }
     }
     if (comm_bckp) {
       AddBufferedFields<M::Dim, 6>(domain.fields.bckp,

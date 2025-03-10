@@ -57,9 +57,6 @@ namespace kernel::gr {
       , coeff { coeff } {
       if constexpr ((D == Dim::_2D) || (D == Dim::_3D)) {
         raise::ErrorIf(boundaries.size() < 2, "boundaries defined incorrectly", HERE);
-        raise::ErrorIf(boundaries[1].size() < 2,
-                       "boundaries defined incorrectly",
-                       HERE);
         is_axis_i2min = (boundaries[1].first == FldsBC::AXIS);
         is_axis_i2max = (boundaries[1].second == FldsBC::AXIS);
       }
@@ -77,6 +74,8 @@ namespace kernel::gr {
         if ((i2 == i2min) && is_axis_i2min) {
           // theta = 0
           const real_t inv_polar_area_pH { ONE / metric.polar_area(i1_ + HALF) };
+          const real_t inv_sqrt_detH_0pH { ONE /
+                                         metric.sqrt_det_h({ i1_, HALF }) };
           Dout(i1, i2, em::dx1) = Din(i1, i2, em::dx1) +
                                   inv_polar_area_pH * coeff * H(i1, i2, em::hx3);
           Dout(i1, i2, em::dx2) = Din(i1, i2, em::dx2) +

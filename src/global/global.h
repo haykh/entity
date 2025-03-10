@@ -285,9 +285,13 @@ namespace BC {
     Dx1  = 1 << 0,
     Dx2  = 1 << 1,
     Dx3  = 1 << 2,
+    Hx1  = 1 << 3,
+    Hx2  = 1 << 4,
+    Hx3  = 1 << 5,
     B    = Bx1 | Bx2 | Bx3,
     E    = Ex1 | Ex2 | Ex3,
     D    = Dx1 | Dx2 | Dx3,
+    H    = Hx1 | Hx2 | Hx3,
   };
 } // namespace BC
 

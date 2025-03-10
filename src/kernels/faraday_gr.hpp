@@ -73,7 +73,9 @@ namespace kernel::gr {
         Bout(i1, i2, em::bx1) = Bin(i1, i2, em::bx1) +
                                 coeff * inv_sqrt_detH_0pH *
                                   (E(i1, i2, em::ex3) - E(i1, i2 + 1, em::ex3));
-        if ((i2 != i2min) || !is_axis_i2min) {
+        if ((i2 == i2min) && is_axis_i2min) {
+          Bout(i1, i2, em::bx2) = ZERO;
+        } else {
           const real_t inv_sqrt_detH_pH0 { ONE / metric.sqrt_det_h(
                                                    { i1_ + HALF, i2_ }) };
           Bout(i1, i2, em::bx2) = Bin(i1, i2, em::bx2) +

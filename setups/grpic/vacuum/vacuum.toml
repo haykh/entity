@@ -1,0 +1,59 @@
+[simulation]
+  name = "vacuum"
+  engine = "grpic"
+  runtime = 100.0
+
+[grid]
+  resolution = [128, 128]
+  extent = [[1.0, 10.0]]
+
+  [grid.metric]
+    metric = "kerr_schild"
+    qsph_r0 = 0.0 
+    qsph_h = 0.0
+    ks_a = 0.95
+
+  [grid.boundaries]
+    fields = [["MATCH"]]
+    particles = [["ABSORB"]]
+
+    [grid.boundaries.absorb]
+      ds = 1.0
+
+[scales]
+  larmor0 = 0.0025
+  skindepth0 = 0.05
+
+[algorithms]
+  current_filters = 0
+
+  [algorithms.timestep]
+    CFL = 0.5
+
+  [algorithms.toggles]
+    deposit = false
+    fieldsolver = true
+
+[particles]
+  ppc0 = 2.0
+
+[setup]
+
+[output]
+  format = "hdf5"
+  separate_files = false
+
+  [output.fields]
+    interval_time = 1.0
+    quantities = ["D", "H", "B", "A"]
+
+  [output.particles]
+    enable = false
+
+  [output.spectra]
+    enable = false
+
+[diagnostics]
+  interval = 2
+  colored_stdout = true
+  blocking_timers = true

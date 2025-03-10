@@ -1,0 +1,85 @@
+[simulation]
+  name = "boris_a09"
+  engine = "grpic"
+  runtime = 500.0
+
+[grid]
+  resolution = [128,128]
+  extent = [[1.2, 20.0]]
+
+  [grid.metric]
+    metric = "kerr_schild"
+    qsph_r0 = 0.0 
+    qsph_h = 0.0
+    ks_a = 0.9
+
+  [grid.boundaries]
+    fields = [["MATCH"]]
+    particles = [["ABSORB"]]
+
+    [grid.boundaries.absorb]
+      ds = 0.5
+
+[scales]
+  larmor0 = 0.5
+  skindepth0 = 1e0
+
+[algorithms]
+  current_filters = 4
+
+  [algorithms.gr]
+    pusher_niter = 10
+    pusher_eps = 1e-6
+
+  [algorithms.timestep]
+    CFL = 1.0
+
+  [algorithms.toggles]
+    deposit = false
+    fieldsolver = false
+
+[particles]
+  ppc0 = 1.0
+
+  [[particles.species]]
+  label = "e+"
+  mass = 1.0
+  charge = 1.0
+  maxnpart = 1e0
+
+  [[particles.species]]
+  label = "e-"
+  mass = 1.0
+  charge = -1.0
+  maxnpart = 1e0
+
+[setup]
+  # Stuchlik and Kolos (2015) Fig.11 ~ RKA3 from Bacchini et al
+  x1s  = [4.000000]
+  y1s  = [1.3707963268]
+  z1s  = [0.000000]
+  ux1s = [0.625666]
+  uy1s = [0.000000]
+  uz1s = [1.580567]
+
+[output]
+  format = "hdf5"
+
+  [output.fields]
+    enable = true
+    interval_time = 1.0
+    quantities = ["D", "B"]
+
+  [output.particles]
+    enable = true
+    stride = 1
+    interval_time = 0.2
+    species = []
+
+  [output.spectra]
+    enable = false
+
+[diagnostics]
+  interval = 10
+  colored_stdout = true
+  blocking_timers = true

@@ -1,0 +1,105 @@
+[simulation]
+  name = "deposit"
+  engine = "grpic"
+  runtime = 500.0
+
+[grid]
+  resolution = [256,256]
+  extent = [[0.8, 20.0]]
+
+  [grid.metric]
+    metric = "qkerr_schild"
+    qsph_r0 = 0.0 
+    qsph_h = 0.0
+    ks_a = 0.95
+
+  [grid.boundaries]
+    fields = [["MATCH"]]
+    particles = [["ABSORB"]]
+
+    [grid.boundaries.absorb]
+      ds = 2.0
+
+[scales]
+  larmor0 = 2e-3
+  skindepth0 = 0.1
+
+[algorithms]
+  current_filters = 4
+
+  [algorithms.gr]
+    pusher_niter = 10
+    pusher_eps = 1e-2
+
+  [algorithms.timestep]
+    CFL = 0.5
+
+  [algorithms.toggles]
+    deposit = true
+    fieldsolver = true
+
+[particles]
+  ppc0 = 1.0
+
+  [[particles.species]]
+  label = "e-"
+  mass = 1.0
+  charge = -1.0
+  maxnpart = 5e0
+
+  [[particles.species]]
+  label = "e+"
+  mass = 1.0
+  charge = 1.0
+  maxnpart = 5e0
+
+[setup]
+  x1s  = [5.000, 15.0, 17.0, 4.0, 12.0]
+  y1s  = [1.5707963268, 0.7853981634, 2.3561944902, 0.1, 3.0415926536]
+  z1s  = [0.0, 0.0, 0.0, 0.0, 0.0]
+  ux1s = [5.0, 5.0, 5.0, 5.0, 5.0]
+  uy1s = [4.0, 7.0, 4.0, -5.0, 9.0]
+  uz1s = [2.0, 1.0, 0.5, 3.0, 2.4]
+
+  x2s  = [5.000, 15.0, 17.0, 4.0, 12.0]
+  y2s  = [1.5707963268, 0.7853981634, 2.3561944902, 0.1, 3.0415926536]
+  z2s  = [0.0, 0.0, 0.0, 0.0, 0.0]
+  ux2s = [-5.0, -5.0, -5.0, -5.0, -5.0]
+  uy2s = [4.0, 7.0, 4.0, -5.0, 9.0]
+  uz2s = [2.0, 1.0, 0.5, 3.0, 2.4]
+
+  #x1s  = [17.00000]
+  #y1s  = [1.570796]
+  #z1s  = [0.000000]
+  #ux1s = [5.000000]
+  #uy1s = [0.000000]
+  #uz1s = [0.000000]
+
+  #x2s  = [17.00000]
+  #y2s  = [1.570796]
+  #z2s  = [0.000000]
+  #ux2s = [-5.000000]
+  #uy2s = [0.000000]
+  #uz2s = [0.000000]
+
+[output]
+  format = "hdf5"
+
+  [output.fields]
+    enable = true
+    interval_time = 1.0
+    quantities = ["D"]
+
+  [output.particles]
+    enable = true
+    stride = 1
+    interval_time = 1.0
+    species = []
+
+  [output.spectra]
+    enable = false
+
+[diagnostics]
+  interval = 10
+  colored_stdout = true
+  blocking_timers = true

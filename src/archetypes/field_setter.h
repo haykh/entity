@@ -170,70 +170,30 @@ namespace arch {
             const real_t x2_H { metric.template convert<2, Crd::Cd, Crd::Ph>(
               i2_ + HALF) };
             { // dx1
-              vec_t<Dim::_3D> d_PU { finit.dx1({ x1_H, x2_0 }),
-                                     finit.dx2({ x1_H, x2_0 }),
-                                     finit.dx3({ x1_H, x2_0 }) };
-              vec_t<Dim::_3D> d_U { ZERO };
-              metric.template transform<Idx::PU, Idx::U>({ i1_ + HALF, i2_ },
-                                                         d_PU,
-                                                         d_U);
-              EM(i1, i2, em::dx1) = d_U[0];
+              EM(i1, i2, em::dx1) = finit.dx1({ x1_H, x2_0 });
             }
             { // dx2
-              vec_t<Dim::_3D> d_PU { finit.dx1({ x1_0, x2_H }),
-                                     finit.dx2({ x1_0, x2_H }),
-                                     finit.dx3({ x1_0, x2_H }) };
-              vec_t<Dim::_3D> d_U { ZERO };
-              metric.template transform<Idx::PU, Idx::U>({ i1_, i2_ + HALF },
-                                                         d_PU,
-                                                         d_U);
-              EM(i1, i2, em::dx2) = d_U[1];
+              EM(i1, i2, em::dx2) = finit.dx2({ x1_0, x2_H });
             }
             { // dx3
-              vec_t<Dim::_3D> d_PU { finit.dx1({ x1_0, x2_0 }),
-                                     finit.dx2({ x1_0, x2_0 }),
-                                     finit.dx3({ x1_0, x2_0 }) };
-              vec_t<Dim::_3D> d_U { ZERO };
-              metric.template transform<Idx::PU, Idx::U>({ i1_, i2_ }, d_PU, d_U);
-              EM(i1, i2, em::dx3) = d_U[2];
+              EM(i1, i2, em::dx3) = finit.dx3({ x1_0, x2_0 });
             }
           }
           if constexpr (defines_bx1 && defines_bx2 && defines_bx3) {
             const real_t x1_0 { metric.template convert<1, Crd::Cd, Crd::Ph>(i1_) };
             const real_t x1_H { metric.template convert<1, Crd::Cd, Crd::Ph>(
               i1_ + HALF) };
-            const real_t x2_0 { metric.template convert<1, Crd::Cd, Crd::Ph>(i2_) };
-            const real_t x2_H { metric.template convert<1, Crd::Cd, Crd::Ph>(
+            const real_t x2_0 { metric.template convert<2, Crd::Cd, Crd::Ph>(i2_) };
+            const real_t x2_H { metric.template convert<2, Crd::Cd, Crd::Ph>(
               i2_ + HALF) };
             { // bx1
-              vec_t<Dim::_3D> b_PU { finit.dx1({ x1_0, x2_H }),
-                                     finit.dx2({ x1_0, x2_H }),
-                                     finit.dx3({ x1_0, x2_H }) };
-              vec_t<Dim::_3D> b_U { ZERO };
-              metric.template transform<Idx::PU, Idx::U>({ i1_, i2_ + HALF },
-                                                         b_PU,
-                                                         b_U);
-              EM(i1, i2, em::bx1) = b_U[0];
+              EM(i1, i2, em::bx1) = finit.bx1({ x1_0, x2_H });
             }
             { // bx2
-              vec_t<Dim::_3D> b_PU { finit.dx1({ x1_H, x2_0 }),
-                                     finit.dx2({ x1_H, x2_0 }),
-                                     finit.dx3({ x1_H, x2_0 }) };
-              vec_t<Dim::_3D> b_U { ZERO };
-              metric.template transform<Idx::PU, Idx::U>({ i1_ + HALF, i2_ },
-                                                         b_PU,
-                                                         b_U);
-              EM(i1, i2, em::bx2) = b_U[1];
+              EM(i1, i2, em::bx2) = finit.bx2({ x1_H, x2_0 });
             }
             { // bx3
-              vec_t<Dim::_3D> b_PU { finit.dx1({ x1_H, x2_H }),
-                                     finit.dx2({ x1_H, x2_H }),
-                                     finit.dx3({ x1_H, x2_H }) };
-              vec_t<Dim::_3D> b_U { ZERO };
-              metric.template transform<Idx::PU, Idx::U>({ i1_ + HALF, i2_ + HALF },
-                                                         b_PU,
-                                                         b_U);
-              EM(i1, i2, em::bx3) = b_U[2];
+              EM(i1, i2, em::bx3) = finit.bx3({ x1_H, x2_H });
             }
           }
         } else {

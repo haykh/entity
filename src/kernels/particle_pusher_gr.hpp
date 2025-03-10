@@ -29,7 +29,7 @@
 /* Local macros                                                               */
 /* -------------------------------------------------------------------------- */
 #define from_Xi_to_i(XI, I)                                                    \
-  { I = static_cast<int>((XI)); }
+  { I = static_cast<int>((XI + 1)) - 1; }
 
 #define from_Xi_to_i_di(XI, I, DI)                                             \
   {                                                                            \
@@ -65,6 +65,7 @@ namespace kernel::gr {
     static_assert(M::is_metric, "M must be a metric class");
     static constexpr auto D = M::Dim;
 
+  private:
     const randacc_ndfield_t<D, 6> DB;
     const randacc_ndfield_t<D, 6> DB0;
     array_t<int*>                 i1, i2, i3;
@@ -76,44 +77,44 @@ namespace kernel::gr {
     array_t<short*>               tag;
     const M                       metric;
 
-    const real_t coeff, dt;
-    const int    ni1, ni2, ni3;
-    const real_t epsilon;
-    const int    niter;
-    const int    i1_absorb;
+    const real_t         coeff, dt;
+    const int            ni1, ni2, ni3;
+    const real_t         epsilon;
+    const unsigned short niter;
+    const int            i1_absorb;
 
     bool is_axis_i2min { false }, is_axis_i2max { false };
     bool is_absorb_i1min { false }, is_absorb_i1max { false };
 
   public:
-    Pusher_kernel(const ndfield_t<D, 6>&            DB,
-                  const ndfield_t<D, 6>&            DB0,
-                  const array_t<int*>&              i1,
-                  const array_t<int*>&              i2,
-                  const array_t<int*>&              i3,
-                  const array_t<int*>&              i1_prev,
-                  const array_t<int*>&              i2_prev,
-                  const array_t<int*>&              i3_prev,
-                  const array_t<prtldx_t*>&         dx1,
-                  const array_t<prtldx_t*>&         dx2,
-                  const array_t<prtldx_t*>&         dx3,
-                  const array_t<prtldx_t*>&         dx1_prev,
-                  const array_t<prtldx_t*>&         dx2_prev,
-                  const array_t<prtldx_t*>&         dx3_prev,
-                  const array_t<real_t*>&           ux1,
-                  const array_t<real_t*>&           ux2,
-                  const array_t<real_t*>&           ux3,
-                  const array_t<real_t*>&           phi,
-                  const array_t<short*>&            tag,
-                  const M&                          metric,
-                  const real_t&                     coeff,
-                  const real_t&                     dt,
-                  const int&                        ni1,
-                  const int&                        ni2,
-                  const int&                        ni3,
-                  const real_t&                     epsilon,
-                  const int&                        niter,
-                  const boundaries_t<PrtlBC::type>& boundaries)
+    Pusher_kernel(const ndfield_t<D, 6>&      DB,
+                  const ndfield_t<D, 6>&      DB0,
+                  array_t<int*>&              i1,
+                  array_t<int*>&              i2,
+                  array_t<int*>&              i3,
+                  array_t<int*>&              i1_prev,
+                  array_t<int*>&              i2_prev,
+                  array_t<int*>&              i3_prev,
+                  array_t<prtldx_t*>&         dx1,
+                  array_t<prtldx_t*>&         dx2,
+                  array_t<prtldx_t*>&         dx3,
+                  array_t<prtldx_t*>&         dx1_prev,
+                  array_t<prtldx_t*>&         dx2_prev,
+                  array_t<prtldx_t*>&         dx3_prev,
+                  array_t<real_t*>&           ux1,
+                  array_t<real_t*>&           ux2,
+                  array_t<real_t*>&           ux3,
+                  array_t<real_t*>&           phi,
+                  array_t<short*>&            tag,
+                  const M&                    metric,
+                  real_t                      coeff,
+                  real_t                      dt,
+                  int                         ni1,
+                  int                         ni2,
+                  int                         ni3,
+                  const real_t&               epsilon,
+                  const unsigned short&       niter,
+                  const boundaries_t<PrtlBC>& boundaries)
       : DB { DB }
       , DB0 { DB0 }
       , i1 { i1 }
@@ -141,9 +142,7 @@ namespace kernel::gr {
       , ni3 { ni3 }
       , epsilon { epsilon }
       , niter { niter }
-      , i1_absorb { static_cast<int>(metric.template convert<1, Crd::Ph, Crd::Cd>(
-                      metric.rhorizon())) -
-                    5 } {
+      , i1_absorb {N_GHOSTS} {
 
       raise::ErrorIf(boundaries.size() < 2, "boundaries defined incorrectly", HERE);
       is_absorb_i1min = (boundaries[0].first == PrtlBC::ABSORB) ||
@@ -333,31 +332,53 @@ namespace kernel::gr {
         // find contravariant midpoint velocity
         metric.template transform<Idx::D, Idx::U>(xp, vp_mid, vp_mid_cntrv);
 
-        // find Gamma / alpha at midpoint
+        // find Gamma / alpha at midpointы
         real_t u0 { computeGamma(T {}, vp_mid, vp_mid_cntrv) / metric.alpha(xp) };
 
         // find updated velocity
+        // vp_upd[0] =
+        //   vp[0] +
+        //   dt *
+        //     (-metric.alpha(xp) * u0 * DERIVATIVE_IN_R(metric.alpha, xp) +
+        //      vp_mid[0] * DERIVATIVE_IN_R(metric.beta1, xp) -
+        //      (HALF / u0) *
+        //        (DERIVATIVE_IN_R((metric.template h<1, 1>), xp) * SQR(vp_mid[0]) +
+        //         DERIVATIVE_IN_R((metric.template h<2, 2>), xp) * SQR(vp_mid[1]) +
+        //         DERIVATIVE_IN_R((metric.template h<3, 3>), xp) * SQR(vp_mid[2]) +
+        //         TWO * DERIVATIVE_IN_R((metric.template h<1, 3>), xp) *
+        //           vp_mid[0] * vp_mid[2]));
+        // vp_upd[1] =
+        //   vp[1] +
+        //   dt *
+        //     (-metric.alpha(xp) * u0 * DERIVATIVE_IN_TH(metric.alpha, xp) +
+        //      vp_mid[0] * DERIVATIVE_IN_TH(metric.beta1, xp) -
+        //      (HALF / u0) *
+        //        (DERIVATIVE_IN_TH((metric.template h<1, 1>), xp) * SQR(vp_mid[0]) +
+        //         DERIVATIVE_IN_TH((metric.template h<2, 2>), xp) * SQR(vp_mid[1]) +
+        //         DERIVATIVE_IN_TH((metric.template h<3, 3>), xp) * SQR(vp_mid[2]) +
+        //         TWO * DERIVATIVE_IN_TH((metric.template h<1, 3>), xp) *
+        //           vp_mid[0] * vp_mid[2]));
         vp_upd[0] =
           vp[0] +
           dt *
-            (-metric.alpha(xp) * u0 * DERIVATIVE_IN_R(metric.alpha, xp) +
-             vp_mid[0] * DERIVATIVE_IN_R(metric.beta1, xp) -
+            (-metric.alpha(xp) * u0 * metric.dr_alpha(xp) +
+             vp_mid[0] * metric.dr_beta1(xp) -
              (HALF / u0) *
-               (DERIVATIVE_IN_R((metric.template h<1, 1>), xp) * SQR(vp_mid[0]) +
-                DERIVATIVE_IN_R((metric.template h<2, 2>), xp) * SQR(vp_mid[1]) +
-                DERIVATIVE_IN_R((metric.template h<3, 3>), xp) * SQR(vp_mid[2]) +
-                TWO * DERIVATIVE_IN_R((metric.template h<1, 3>), xp) *
+               (metric.dr_h11(xp) * SQR(vp_mid[0]) +
+                metric.dr_h22(xp) * SQR(vp_mid[1]) +
+                metric.dr_h33(xp) * SQR(vp_mid[2]) +
+                TWO * metric.dr_h13(xp) *
                   vp_mid[0] * vp_mid[2]));
         vp_upd[1] =
           vp[1] +
           dt *
-            (-metric.alpha(xp) * u0 * DERIVATIVE_IN_TH(alpha, xp) +
-             vp_mid[1] * DERIVATIVE_IN_TH(beta1, xp) -
+            (-metric.alpha(xp) * u0 * metric.dt_alpha(xp) +
+             vp_mid[0] * metric.dt_beta1(xp) -
              (HALF / u0) *
-               (DERIVATIVE_IN_TH((metric.template h<1, 1>), xp) * SQR(vp_mid[0]) +
-                DERIVATIVE_IN_TH((metric.template h<2, 2>), xp) * SQR(vp_mid[1]) +
-                DERIVATIVE_IN_TH((metric.template h<3, 3>), xp) * SQR(vp_mid[2]) +
-                TWO * DERIVATIVE_IN_TH((metric.template h<1, 3>), xp) *
+               (metric.dt_h11(xp) * SQR(vp_mid[0]) +
+                metric.dt_h22(xp) * SQR(vp_mid[1]) +
+                metric.dt_h33(xp) * SQR(vp_mid[2]) +
+                TWO * metric.dt_h13(xp) *
                   vp_mid[0] * vp_mid[2]));
       }
     } else if constexpr (D == Dim::_3D) {
@@ -455,7 +476,7 @@ namespace kernel::gr {
                     dt *
                       (-metric.alpha(xp_mid) * u0 *
                          DERIVATIVE_IN_TH(metric.alpha, xp_mid) +
-                       vp_mid[1] * DERIVATIVE_IN_TH(metric.beta1, xp_mid) -
+                       vp_mid[0] * DERIVATIVE_IN_TH(metric.beta1, xp_mid) -
                        (HALF / u0) *
                          (DERIVATIVE_IN_TH((metric.template h<1, 1>), xp_mid) *
                             SQR(vp_mid[0]) +
@@ -691,7 +712,7 @@ namespace kernel::gr {
         { (xp[0] + xp_upd[0]) * HALF, (xp[1] + xp_upd[1]) * HALF },
         vp_upd,
         phi(p));
-
+      
       // update coordinate
       int      i1_, i2_;
       prtldx_t dx1_, dx2_;
@@ -725,12 +746,16 @@ namespace kernel::gr {
       }
     }
     if constexpr (D == Dim::_2D || D == Dim::_3D) {
-      if (i2(p) < 1) {
+      if (i2(p) < 0) {
         if (is_axis_i2min) {
+          i2(p)  = 0;
+          dx2(p) = ONE - dx2(p);
           ux2(p) = -ux2(p);
         }
-      } else if (i2(p) >= ni2 - 1) {
-        if (is_axis_i2min) {
+      } else if (i2(p) >= ni2) {
+        if (is_axis_i2max) {
+          i2(p)  = ni2 - 1;
+          dx2(p) = ONE - dx2(p);
           ux2(p) = -ux2(p);
         }
       }

@@ -369,6 +369,8 @@ namespace ntt {
 
   template <SimEngine::type S, class M>
   void Metadomain<S, M>::metricCompatibilityCheck() const {
+    const auto epsilon = std::numeric_limits<real_t>::epsilon() *
+                         static_cast<real_t>(100.0);
     const auto dx_min              = g_mesh.metric.dxMin();
     auto       dx_min_from_domains = std::numeric_limits<real_t>::infinity();
     for (unsigned int idx { 0 }; idx < g_ndomains; ++idx) {
@@ -377,7 +379,7 @@ namespace ntt {
       dx_min_from_domains = std::min(dx_min_from_domains, current_dx_min);
     }
     raise::ErrorIf(
-      not cmp::AlmostEqual(dx_min, dx_min_from_domains),
+      not cmp::AlmostEqual(dx_min / dx_min_from_domains, ONE, epsilon),
       "dx_min is not the same across all domains: " + std::to_string(dx_min) +
         " " + std::to_string(dx_min_from_domains),
       HERE);
@@ -392,7 +394,7 @@ namespace ntt {
                   mpi::get_type<real_t>(),
                   MPI_COMM_WORLD);
     for (const auto& dx : dx_mins) {
-      raise::ErrorIf(!cmp::AlmostEqual(dx, dx_min),
+      raise::ErrorIf(not cmp::AlmostEqual(dx / dx_min, ONE, epsilon),
                      "dx_min is not the same across all MPI ranks",
                      HERE);
     }
