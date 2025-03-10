@@ -9,7 +9,7 @@
  *   - enum ntt::PrtlBC            // periodic, absorb, atmosphere, custom,
  *                                    reflect, horizon, axis, sync
  *   - enum ntt::FldsBC            // periodic, match, fixed, atmosphere,
- *                                    custom, horizon, axis, sync
+ *                                    custom, horizon, axis, conductor, sync
  *   - enum ntt::PrtlPusher        // boris, vay, photon, none
  *   - enum ntt::Cooling           // synchrotron, none
  *   - enum ntt::FldsID            // e, dive, d, divd, b, h, j,
@@ -221,16 +221,20 @@ namespace ntt {
       CUSTOM     = 5,
       HORIZON    = 6,
       AXIS       = 7,
-      SYNC       = 8, // <- SYNC means synchronization with other domains
+      CONDUCTOR  = 8,
+      SYNC       = 9 // <- SYNC means synchronization with other domains
     };
 
     constexpr FldsBC(uint8_t c) : enums_hidden::BaseEnum<FldsBC> { c } {}
 
-    static constexpr type variants[] = { PERIODIC, MATCH,   FIXED, ATMOSPHERE,
-                                         CUSTOM,   HORIZON, AXIS,  SYNC };
-    static constexpr const char* lookup[] = { "periodic",   "match",  "fixed",
-                                              "atmosphere", "custom", "horizon",
-                                              "axis",       "sync" };
+    static constexpr type variants[] = {
+      PERIODIC, MATCH, FIXED,     ATMOSPHERE, CUSTOM,
+      HORIZON,  AXIS,  CONDUCTOR, SYNC,
+    };
+    static constexpr const char* lookup[] = {
+      "periodic", "match", "fixed",     "atmosphere", "custom",
+      "horizon",  "axis",  "conductor", "sync"
+    };
     static constexpr std::size_t total = sizeof(variants) / sizeof(variants[0]);
   };
 

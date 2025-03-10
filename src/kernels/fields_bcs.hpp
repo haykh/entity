@@ -5,6 +5,7 @@
  *   - kernel::bc::MatchBoundaries_kernel<>
  *   - kernel::bc::AxisBoundaries_kernel<>
  *   - kernel::bc::EnforcedBoundaries_kernel<>
+ *   - kernel::bc::ConductorBoundaries_kernel<>
  * @namespaces:
  *   - kernel::bc::
  */
@@ -481,6 +482,109 @@ namespace kernel::bc {
         raise::KernelError(
           HERE,
           "MatchBoundaries_kernel: 3D implementation called for D != 3");
+      }
+    }
+  };
+
+  template <Dimension D, in o>
+  struct ConductorBoundaries_kernel {
+    static_assert(static_cast<unsigned short>(o) < static_cast<unsigned short>(D),
+                  "Invalid component index");
+
+    ndfield_t<D, 6> Fld;
+    const BCTags    tags;
+
+    ConductorBoundaries_kernel(ndfield_t<D, 6> Fld, BCTags tags)
+      : Fld { Fld }
+      , tags { tags } {}
+
+    Inline void operator()(index_t i1) const {
+      if constexpr (D == Dim::_1D) {
+        if (tags & BC::E) {
+          if (i1 == 0) {
+            Fld(N_GHOSTS, em::ex2) = ZERO;
+            Fld(N_GHOSTS, em::ex3) = ZERO;
+          } else {
+            Fld(N_GHOSTS - i1, em::ex1) = Fld(N_GHOSTS + i1 - 1, em::ex1);
+            Fld(N_GHOSTS - i1, em::ex2) = -Fld(N_GHOSTS + i1, em::ex2);
+            Fld(N_GHOSTS - i1, em::ex3) = -Fld(N_GHOSTS + i1, em::ex3);
+          }
+        }
+
+        if (tags & BC::B) {
+          if (i1 == 0) {
+            Fld(N_GHOSTS, em::bx1) = ZERO;         
+          } else {
+            Fld(N_GHOSTS - i1, em::bx1) = -Fld(N_GHOSTS + i1, em::bx1);
+            Fld(N_GHOSTS - i1, em::bx2) = Fld(N_GHOSTS + i1 - 1, em::bx2);
+            Fld(N_GHOSTS - i1, em::bx3) = Fld(N_GHOSTS + i1 - 1, em::bx3);
+          }
+        }
+      } else {
+        raise::KernelError(
+          HERE,
+          "ConductorBoundaries_kernel: 1D implementation called for D != 1");
+      }
+    }
+
+    Inline void operator()(index_t i1, index_t i2) const {
+      if constexpr (D == Dim::_2D) {
+        if (tags & BC::E) {
+          if (i1 == 0) {
+            Fld(N_GHOSTS, i2, em::ex2) = ZERO;
+            Fld(N_GHOSTS, i2, em::ex3) = ZERO;
+          } else {
+            Fld(N_GHOSTS - i1, i2, em::ex1) = Fld(N_GHOSTS + i1 - 1, i2, em::ex1);
+            Fld(N_GHOSTS - i1, i2, em::ex2) = -Fld(N_GHOSTS + i1, i2, em::ex2);
+            Fld(N_GHOSTS - i1, i2, em::ex3) = -Fld(N_GHOSTS + i1, i2, em::ex3);
+          }
+        }
+
+        if (tags & BC::B) {
+          if (i1 == 0) {
+            Fld(N_GHOSTS, i2, em::bx1) = ZERO;
+          } else {
+            Fld(N_GHOSTS - i1, i2, em::bx1) = -Fld(N_GHOSTS + i1, i2, em::bx1);
+            Fld(N_GHOSTS - i1, i2, em::bx2) = Fld(N_GHOSTS + i1 - 1, i2, em::bx2);
+            Fld(N_GHOSTS - i1, i2, em::bx3) = Fld(N_GHOSTS + i1 - 1, i2, em::bx3);
+          }
+        }
+      } else {
+        raise::KernelError(
+          HERE,
+          "ConductorBoundaries_kernel: 2D implementation called for D != 2");
+      }
+    }
+
+    Inline void operator()(index_t i1, index_t i2, index_t i3) const {
+      if constexpr (D == Dim::_3D) {
+        if (tags & BC::E) {
+          if (i1 == 0) {
+            Fld(N_GHOSTS, i2, i3, em::ex2) = ZERO;
+            Fld(N_GHOSTS, i2, i3, em::ex3) = ZERO;
+          } else {
+            Fld(N_GHOSTS - i1, i2, i3, em::ex1) = Fld(N_GHOSTS + i1 - 1,
+                                                      i2, i3, em::ex1);
+            Fld(N_GHOSTS - i1, i2, i3, em::ex2) = -Fld(N_GHOSTS + i1, i2, i3, em::ex2);
+            Fld(N_GHOSTS - i1, i2, i3, em::ex3) = -Fld(N_GHOSTS + i1, i2, i3, em::ex3);
+          }
+        }
+
+        if (tags & BC::B) {
+          if (i1 == 0) {
+              Fld(N_GHOSTS, i2, i3, em::bx1) = ZERO;
+          } else {
+            Fld(N_GHOSTS - i1, i2, i3, em::bx1) = -Fld(N_GHOSTS + i1, i2, i3, em::bx1);
+            Fld(N_GHOSTS - i1, i2, i3, em::bx2) = Fld(N_GHOSTS + i1 - 1,
+                                                      i2, i3, em::bx2);
+            Fld(N_GHOSTS - i1, i2, i3, em::bx3) = Fld(N_GHOSTS + i1 - 1,
+                                                      i2, i3, em::bx3);
+          }
+        }
+      } else {
+        raise::KernelError(
+          HERE,
+          "ConductorBoundaries_kernel: 3D implementation called for D != 3");
       }
     }
   };

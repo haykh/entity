@@ -70,7 +70,7 @@ namespace comm {
                                  (long int)(send_slice[0].first);
           Kokkos::parallel_for(
             "CommunicateField-extract",
-            Kokkos::MDRangePolicy<Kokkos::Rank<2>, AccelExeSpace>(
+            Kokkos::MDRangePolicy<Kokkos::Rank<2>, Kokkos::DefaultExecutionSpace>(
               { recv_slice[0].first, comps.first },
               { recv_slice[0].second, comps.second }),
             Lambda(index_t i1, index_t ci) {
@@ -83,7 +83,7 @@ namespace comm {
                                  (long int)(send_slice[1].first);
           Kokkos::parallel_for(
             "CommunicateField-extract",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>, AccelExeSpace>(
+            Kokkos::MDRangePolicy<Kokkos::Rank<3>, Kokkos::DefaultExecutionSpace>(
               { recv_slice[0].first, recv_slice[1].first, comps.first },
               { recv_slice[0].second, recv_slice[1].second, comps.second }),
             Lambda(index_t i1, index_t i2, index_t ci) {
@@ -98,7 +98,7 @@ namespace comm {
                                  (long int)(send_slice[2].first);
           Kokkos::parallel_for(
             "CommunicateField-extract",
-            Kokkos::MDRangePolicy<Kokkos::Rank<4>, AccelExeSpace>(
+            Kokkos::MDRangePolicy<Kokkos::Rank<4>, Kokkos::DefaultExecutionSpace>(
               { recv_slice[0].first,
                 recv_slice[1].first,
                 recv_slice[2].first,

@@ -40,8 +40,13 @@ void testFilter(const std::vector<std::size_t>&      res,
   auto boundaries = boundaries_t<FldsBC> {};
   if constexpr (M::CoordType != Coord::Cart) {
     boundaries = {
-      {FldsBC::CUSTOM, FldsBC::CUSTOM},
-      {  FldsBC::AXIS,   FldsBC::AXIS}
+      { FldsBC::CUSTOM, FldsBC::CUSTOM },
+      {   FldsBC::AXIS,   FldsBC::AXIS }
+    };
+  } else {
+    boundaries = {
+      { FldsBC::PERIODIC, FldsBC::PERIODIC },
+      { FldsBC::PERIODIC, FldsBC::PERIODIC }
     };
   }
 

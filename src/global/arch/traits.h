@@ -113,6 +113,18 @@ namespace traits {
     using fix_fields_const_t = decltype(&T::FixFieldsConst);
 
     template <typename T>
+    using perfect_conductor_fields_t = decltype(&T::PerfectConductorFields);
+
+    template <typename T>
+    using perfect_conductor_fields_const_t = decltype(&T::PerfectConductorFieldsConst);
+
+    template <typename T>
+    using perfect_conductor_currents_t = decltype(&T::PerfectConductorCurrents);
+
+    template <typename T>
+    using perfect_conductor_currents_const_t = decltype(&T::PerfectConductorCurrentsConst);
+
+    template <typename T>
     using custom_fields_t = decltype(&T::CustomFields);
 
     template <typename T>

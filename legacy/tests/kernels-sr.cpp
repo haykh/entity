@@ -1,16 +1,16 @@
-#include "wrapper.h"
-
 #include <Kokkos_Core.hpp>
 
 #include <iostream>
 #include <stdexcept>
 
+#include "wrapper.h"
+
 #include METRIC_HEADER
 #include PGEN_HEADER
 
-#include "particle_macros.h"
-
 #include "kernels/particle_pusher_sr.hpp"
+
+#include "particle_macros.h"
 
 template <typename T>
 void put_value(ntt::array_t<T*>& arr, T value, int i) {
