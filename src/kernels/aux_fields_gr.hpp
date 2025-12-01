@@ -58,18 +58,19 @@ namespace kernel::gr {
         const real_t alpha_pH0 { metric.alpha({ i1_ + HALF, i2_ }) };
         const real_t alpha_0pH { metric.alpha({ i1_, i2_ + HALF }) };
 
-        real_t w1, w2;
+        real_t w1, w2, ww;
         real_t h_13_ij1, h_13_ij2;
         real_t sqrt_detH_ij1, sqrt_detH_ij2;
         real_t beta_ij1, beta_ij2;
 
         w1       = metric.sqrt_det_h_tilde({ i1_ - HALF, i2_ });
         w2       = metric.sqrt_det_h_tilde({ i1_ + HALF, i2_ });
+        ww       = TWO * metric.sqrt_det_h_tilde({ i1_, i2_ });
         h_13_ij1 = metric.template h_<1, 3>({ i1_ - HALF, i2_ });
         h_13_ij2 = metric.template h_<1, 3>({ i1_ + HALF, i2_ });
         const real_t D1_half { (w1 * h_13_ij1 * Df(i1 - 1, i2, em::dx1) +
                                 w2 * h_13_ij2 * Df(i1, i2, em::dx1)) /
-                               (w1 + w2) };
+                               (ww) };
 
         sqrt_detH_ij1 = metric.sqrt_det_h({ i1_ - HALF, i2_ });
         sqrt_detH_ij2 = metric.sqrt_det_h({ i1_ + HALF, i2_ });
@@ -78,11 +79,12 @@ namespace kernel::gr {
         const real_t B2_half {
           (w1 * sqrt_detH_ij1 * beta_ij1 * Bf(i1 - 1, i2, em::bx2) +
            w2 * sqrt_detH_ij2 * beta_ij2 * Bf(i1, i2, em::bx2)) /
-          (w1 + w2)
+          (ww)
         };
 
         w1            = metric.sqrt_det_h_tilde({ i1_ - HALF, i2_ + HALF });
         w2            = metric.sqrt_det_h_tilde({ i1_ + HALF, i2_ + HALF });
+        ww            = TWO * metric.sqrt_det_h_tilde({ i1_, i2_ + HALF });
         sqrt_detH_ij1 = metric.sqrt_det_h({ i1_ - HALF, i2_ + HALF });
         sqrt_detH_ij2 = metric.sqrt_det_h({ i1_ + HALF, i2_ + HALF });
         beta_ij1      = metric.beta1({ i1_ - HALF, i2_ + HALF });
@@ -90,16 +92,17 @@ namespace kernel::gr {
         const real_t B3_half {
           (w1 * sqrt_detH_ij1 * beta_ij1 * Bf(i1 - 1, i2, em::bx3) +
            w2 * sqrt_detH_ij2 * beta_ij2 * Bf(i1, i2, em::bx3)) /
-          (w1 + w2)
+          (ww)
         };
 
         w1       = metric.sqrt_det_h_tilde({ i1_, i2_ });
         w2       = metric.sqrt_det_h_tilde({ i1_ + ONE, i2_ });
+        ww       = TWO * metric.sqrt_det_h_tilde({ i1_ + HALF, i2_ });
         h_13_ij1 = metric.template h_<1, 3>({ i1_, i2_ });
         h_13_ij2 = metric.template h_<1, 3>({ i1_ + ONE, i2_ });
         const real_t D3_half { (w1 * h_13_ij1 * Df(i1, i2, em::dx3) +
                                 w2 * h_13_ij2 * Df(i1 + 1, i2, em::dx3)) /
-                               (w1 + w2) };
+                               (ww) };
 
         const real_t D1_cov { h_11_pH0 * Df(i1, i2, em::dx1) + D3_half };
         const real_t D2_cov { h_22_0pH * Df(i1, i2, em::dx2) };
@@ -163,18 +166,19 @@ namespace kernel::gr {
         const real_t alpha_pH0 { metric.alpha({ i1_ + HALF, i2_ }) };
         const real_t alpha_pHpH { metric.alpha({ i1_ + HALF, i2_ + HALF }) };
 
-        real_t w1, w2;
+        real_t w1, w2, ww;
         real_t h_13_ij1, h_13_ij2;
         real_t sqrt_detH_ij1, sqrt_detH_ij2;
         real_t beta_ij1, beta_ij2;
 
         w1       = metric.sqrt_det_h_tilde({ i1_, i2_ + HALF });
         w2       = metric.sqrt_det_h_tilde({ i1_ + ONE, i2_ + HALF });
+        ww       = TWO * metric.sqrt_det_h_tilde({ i1_ + HALF, i2_ + HALF });
         h_13_ij1 = metric.template h_<1, 3>({ i1_, i2_ + HALF });
         h_13_ij2 = metric.template h_<1, 3>({ i1_ + ONE, i2_ + HALF });
         const real_t B1_half { (w1 * h_13_ij1 * Bf(i1, i2, em::bx1) +
                                 w2 * h_13_ij2 * Bf(i1 + 1, i2, em::bx1)) /
-                               (w1 + w2) };
+                               (ww) };
 
         sqrt_detH_ij1 = metric.sqrt_det_h({ i1_, i2_ + HALF });
         sqrt_detH_ij2 = metric.sqrt_det_h({ i1_ + ONE, i2_ + HALF });
@@ -183,11 +187,12 @@ namespace kernel::gr {
         const real_t D2_half {
           (w1 * sqrt_detH_ij1 * beta_ij1 * Df(i1, i2, em::dx2) +
            w2 * sqrt_detH_ij2 * beta_ij2 * Df(i1 + 1, i2, em::dx2)) /
-          (w1 + w2)
+          (ww)
         };
 
         w1            = metric.sqrt_det_h_tilde({ i1_, i2_ });
         w2            = metric.sqrt_det_h_tilde({ i1_ + ONE, i2_ });
+        ww            = TWO * metric.sqrt_det_h_tilde({ i1_ + HALF, i2_ });
         sqrt_detH_ij1 = metric.sqrt_det_h({ i1_, i2_ });
         sqrt_detH_ij2 = metric.sqrt_det_h({ i1_ + ONE, i2_ });
         beta_ij1      = metric.beta1({ i1_, i2_ });
@@ -195,16 +200,17 @@ namespace kernel::gr {
         const real_t D3_half {
           (w1 * sqrt_detH_ij1 * beta_ij1 * Df(i1, i2, em::dx3) +
            w2 * sqrt_detH_ij2 * beta_ij2 * Df(i1 + 1, i2, em::dx3)) /
-          (w1 + w2)
+          (ww)
         };
 
         w1       = metric.sqrt_det_h_tilde({ i1_ - HALF, i2_ + HALF });
         w2       = metric.sqrt_det_h_tilde({ i1_ + HALF, i2_ + HALF });
+        ww       = TWO * metric.sqrt_det_h_tilde({ i1_, i2_ + HALF });
         h_13_ij1 = metric.template h_<1, 3>({ i1_ - HALF, i2_ + HALF });
         h_13_ij2 = metric.template h_<1, 3>({ i1_ + HALF, i2_ + HALF });
         const real_t B3_half { (w1 * h_13_ij1 * Bf(i1 - 1, i2, em::bx3) +
                                 w2 * h_13_ij2 * Bf(i1, i2, em::bx3)) /
-                               (w1 + w2) };
+                               (ww) };
 
         const real_t B1_cov { h_11_0pH * Bf(i1, i2, em::bx1) + B3_half };
         const real_t B2_cov { h_22_pH0 * Bf(i1, i2, em::bx2) };
