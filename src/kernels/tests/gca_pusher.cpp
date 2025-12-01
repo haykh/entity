@@ -173,7 +173,7 @@ void testPusher(const std::vector<std::size_t>& res) {
                                                      ZERO, coeff, dt,
                                                      nx1, nx2, nx3,
                                                      boundaries,
-                                                     (real_t)10000.0, ONE, ZERO));
+                                                     (real_t)10000.0, ONE, ZERO, ZERO));
 
     auto ux1_      = Kokkos::create_mirror_view(ux1);
     auto ux2_      = Kokkos::create_mirror_view(ux2);

@@ -92,7 +92,7 @@ namespace kernel::bc {
       }
     }
 
-    Inline auto shape(const real_t& dx) const -> real_t {
+    Inline auto shape(real_t dx) const -> real_t {
       return math::tanh(dx * FOUR / dx_abs);
     }
 

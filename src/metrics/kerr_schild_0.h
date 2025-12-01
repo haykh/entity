@@ -73,17 +73,17 @@ namespace metric {
     ~KerrSchild0() = default;
 
     [[nodiscard]]
-    Inline auto spin() const -> const real_t& {
+    Inline auto spin() const -> real_t {
       return a;
     }
 
     [[nodiscard]]
-    Inline auto rhorizon() const -> const real_t& {
+    Inline auto rhorizon() const -> real_t {
       return rh_;
     }
 
     [[nodiscard]]
-    Inline auto rg() const -> const real_t& {
+    Inline auto rg() const -> real_t {
       return rg_;
     }
 
@@ -325,7 +325,7 @@ namespace metric {
      * differential area at the pole (used in axisymmetric solvers)
      * @param x1 radial coordinate along the axis (code units)
      */
-    Inline auto polar_area(const real_t& x1) const -> real_t {
+    Inline auto polar_area(real_t x1) const -> real_t {
       return dr * SQR(x1 * dr + x1_min) * (ONE - math::cos(HALF * dtheta));
     }
 
@@ -333,7 +333,7 @@ namespace metric {
      * component-wise coordinate conversions
      */
     template <idx_t i, Crd in, Crd out>
-    Inline auto convert(const real_t& x_in) const -> real_t {
+    Inline auto convert(real_t x_in) const -> real_t {
       static_assert(in != out, "Invalid coordinate conversion");
       static_assert(i > 0 && i <= 3, "Invalid index i");
       static_assert((in == Crd::Cd && (out == Crd::Sph || out == Crd::Ph)) ||

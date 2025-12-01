@@ -22,7 +22,7 @@ namespace sort {
     BinBool() = default;
 
     template <class ViewType>
-    Inline auto bin(ViewType& keys, const int& i) const -> int {
+    Inline auto bin(ViewType& keys, int i) const -> int {
       return keys(i) ? 1 : 0;
     }
 
@@ -38,10 +38,10 @@ namespace sort {
 
   template <class KeyViewType>
   struct BinTag {
-    BinTag(const int& max_bins) : m_max_bins { max_bins } {}
+    BinTag(int max_bins) : m_max_bins { max_bins } {}
 
     template <class ViewType>
-    Inline auto bin(ViewType& keys, const int& i) const -> int {
+    Inline auto bin(ViewType& keys, int i) const -> int {
       return (keys(i) == 0) ? 1 : ((keys(i) == 1) ? 0 : keys(i));
     }
 

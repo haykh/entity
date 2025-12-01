@@ -51,7 +51,7 @@ namespace kernel::sr {
     enum CoolingTags_ {
       None        = 0,
       Synchrotron = 1 << 0,
-      Compton = 1 << 1,
+      Compton     = 1 << 1,
     };
   } // namespace Cooling
 
@@ -105,8 +105,8 @@ namespace kernel::sr {
       raise::ErrorIf(ExtForce, "External force not provided", HERE);
     }
 
-    Inline auto fx1(const spidx_t&    sp,
-                    const simtime_t&  time,
+    Inline auto fx1(spidx_t           sp,
+                    simtime_t         time,
                     bool              ext_force,
                     const coord_t<D>& x_Ph) const -> real_t {
       real_t f_x1 = ZERO;
@@ -131,8 +131,8 @@ namespace kernel::sr {
       return f_x1;
     }
 
-    Inline auto fx2(const spidx_t&    sp,
-                    const simtime_t&  time,
+    Inline auto fx2(spidx_t           sp,
+                    simtime_t         time,
                     bool              ext_force,
                     const coord_t<D>& x_Ph) const -> real_t {
       real_t f_x2 = ZERO;
@@ -157,8 +157,8 @@ namespace kernel::sr {
       return f_x2;
     }
 
-    Inline auto fx3(const spidx_t&    sp,
-                    const simtime_t&  time,
+    Inline auto fx3(spidx_t           sp,
+                    simtime_t         time,
                     bool              ext_force,
                     const coord_t<D>& x_Ph) const -> real_t {
       real_t f_x3 = ZERO;
@@ -408,7 +408,7 @@ namespace kernel::sr {
                       coeff_sync,
                       coeff_comp) {}
 
-    Inline void synchrotronDrag(index_t&               p,
+    Inline void synchrotronDrag(index_t                p,
                                 vec_t<Dim::_3D>&       u_prime,
                                 const vec_t<Dim::_3D>& e0,
                                 const vec_t<Dim::_3D>& b0) const {
@@ -459,9 +459,7 @@ namespace kernel::sr {
       ux3(p) += coeff_sync * (kappaR[2] - gamma_prime_sqr * u_prime[2] * chiR_sqr);
     }
 
-    Inline void inverseComptonDrag(index_t&               p,
-                                   vec_t<Dim::_3D>&       u_prime
-                                  ) const {
+    Inline void inverseComptonDrag(index_t p, vec_t<Dim::_3D>& u_prime) const {
       real_t gamma_prime_sqr  = ONE / math::sqrt(ONE + NORM_SQR(u_prime[0],
                                                                u_prime[1],
                                                                u_prime[2]));
@@ -591,7 +589,7 @@ namespace kernel::sr {
       posUpd(true, p, xp_Cd);
     }
 
-    Inline void posUpd(bool massive, index_t& p, coord_t<M::PrtlDim>& xp) const {
+    Inline void posUpd(bool massive, index_t p, coord_t<M::PrtlDim>& xp) const {
       // get cartesian velocity
       if constexpr (M::CoordType == Coord::Cart) {
         // i+di push for Cartesian basis
@@ -682,7 +680,7 @@ namespace kernel::sr {
      * @param p, e0, b0 index & interpolated fields
      */
     Inline void velUpd(bool             with_gca,
-                       index_t&         p,
+                       index_t          p,
                        vec_t<Dim::_3D>& e0,
                        vec_t<Dim::_3D>& b0) const {
       if (with_gca) {
@@ -797,7 +795,7 @@ namespace kernel::sr {
     }
 
     Inline void velUpd(bool,
-                       index_t&         p,
+                       index_t          p,
                        vec_t<Dim::_3D>& f0,
                        vec_t<Dim::_3D>& e0,
                        vec_t<Dim::_3D>& b0) const {
@@ -839,7 +837,7 @@ namespace kernel::sr {
     }
 
     // Getters
-    Inline void getPrtlPos(index_t& p, coord_t<M::PrtlDim>& xp) const {
+    Inline void getPrtlPos(index_t p, coord_t<M::PrtlDim>& xp) const {
       if constexpr (D == Dim::_1D || D == Dim::_2D || D == Dim::_3D) {
         xp[0] = i_di_to_Xi(i1(p), dx1(p));
       }
@@ -855,7 +853,7 @@ namespace kernel::sr {
       }
     }
 
-    Inline void getInterpFlds(index_t&         p,
+    Inline void getInterpFlds(index_t          p,
                               vec_t<Dim::_3D>& e0,
                               vec_t<Dim::_3D>& b0) const {
       if constexpr (D == Dim::_1D) {
@@ -1120,7 +1118,7 @@ namespace kernel::sr {
     }
 
     // Extra
-    Inline void boundaryConditions(index_t& p, coord_t<M::PrtlDim>& xp) const {
+    Inline void boundaryConditions(index_t p, coord_t<M::PrtlDim>& xp) const {
       if constexpr (D == Dim::_1D || D == Dim::_2D || D == Dim::_3D) {
         auto invert_vel = false;
         if (i1(p) < 0) {

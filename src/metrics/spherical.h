@@ -170,7 +170,7 @@ namespace metric {
      * @param x1 radial coordinate along the axis (code units)
      * @note uses small-angle approximation when the resolution is too high
      */
-    Inline auto polar_area(const real_t& x1) const -> real_t {
+    Inline auto polar_area(real_t x1) const -> real_t {
       if (small_angle) {
         return dr * SQR(x1 * dr + x1_min) *
                (static_cast<real_t>(48) - SQR(dtheta)) * SQR(dtheta) /
@@ -184,7 +184,7 @@ namespace metric {
      * component-wise coordinate conversions
      */
     template <idx_t i, Crd in, Crd out>
-    Inline auto convert(const real_t& x_in) const -> real_t {
+    Inline auto convert(real_t x_in) const -> real_t {
       static_assert(in != out, "Invalid coordinate conversion");
       static_assert(i > 0 && i <= 3, "Invalid index i");
       static_assert((in == Crd::Cd && (out == Crd::Sph || out == Crd::Ph)) ||
@@ -275,7 +275,7 @@ namespace metric {
      * @note tetrad/sph <-> cntrv <-> cov
      */
     template <idx_t i, Idx in, Idx out>
-    Inline auto transform(const coord_t<D>& xi, const real_t& v_in) const -> real_t {
+    Inline auto transform(const coord_t<D>& xi, real_t v_in) const -> real_t {
       static_assert(i > 0 && i <= 3, "Invalid index i");
       static_assert(in != out, "Invalid vector transformation");
       if constexpr ((in == Idx::T && out == Idx::Sph) ||

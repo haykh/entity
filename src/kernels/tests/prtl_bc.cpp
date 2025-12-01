@@ -259,7 +259,7 @@ void testPeriodicBC(const std::vector<std::size_t>&      res,
                                    time, coeff, dt,
                                    nx1, nx2, nx3,
                                    boundaries,
-                                   ZERO, ZERO, ZERO));
+                                   ZERO, ZERO, ZERO, ZERO));
     // clang-format on
     auto i1_  = Kokkos::create_mirror_view(i1);
     auto i2_  = Kokkos::create_mirror_view(i2);

@@ -26,7 +26,7 @@ namespace kernel {
   using namespace ntt;
 
   template <Dimension D, Coord::type C, bool T>
-  Inline void InjectParticle(const npart_t&              p,
+  Inline void InjectParticle(npart_t                     p,
                              const array_t<int*>&        i1_arr,
                              const array_t<int*>&        i2_arr,
                              const array_t<int*>&        i3_arr,
@@ -43,10 +43,10 @@ namespace kernel {
                              const tuple_t<int, D>&      xi_Cd,
                              const tuple_t<prtldx_t, D>& dxi_Cd,
                              const vec_t<Dim::_3D>&      v_Cd,
-                             const real_t&               weight       = ONE,
-                             const real_t&               phi          = ZERO,
-                             const npart_t&              domain_idx   = 0u,
-                             const npart_t&              species_cntr = 0u) {
+                             real_t                      weight       = ONE,
+                             real_t                      phi          = ZERO,
+                             npart_t                     domain_idx   = 0u,
+                             npart_t                     species_cntr = 0u) {
     if constexpr (D == Dim::_1D or D == Dim::_2D or D == Dim::_3D) {
       i1_arr(p)  = xi_Cd[0];
       dx1_arr(p) = dxi_Cd[0];
@@ -615,11 +615,11 @@ namespace kernel {
       return idx_h();
     }
 
-    Inline void inject1(const index_t&                   index,
+    Inline void inject1(const index_t                    index,
                         const tuple_t<int, M::Dim>&      xi_Cd,
                         const tuple_t<prtldx_t, M::Dim>& dxi_Cd,
                         const vec_t<Dim::_3D>&           v_Cd,
-                        const real_t&                    weight) const {
+                        const real_t                     weight) const {
       // clang-format off
       if (not use_tracking_1) {
         InjectParticle<M::Dim, M::CoordType, false>(index + offset1,
@@ -640,11 +640,11 @@ namespace kernel {
       // clang-format on
     }
 
-    Inline void inject2(const index_t&                   index,
+    Inline void inject2(const index_t                    index,
                         const tuple_t<int, M::Dim>&      xi_Cd,
                         const tuple_t<prtldx_t, M::Dim>& dxi_Cd,
                         const vec_t<Dim::_3D>&           v_Cd,
-                        const real_t&                    weight) const {
+                        const real_t                     weight) const {
       // clang-format off
       if (not use_tracking_2) {
         InjectParticle<M::Dim, M::CoordType, false>(index + offset1,

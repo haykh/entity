@@ -197,7 +197,7 @@ namespace metric {
      * differential area at the pole (used in axisymmetric solvers)
      * @param x1 radial coordinate along the axis (code units)
      */
-    Inline auto polar_area(const real_t& x1) const -> real_t {
+    Inline auto polar_area(real_t x1) const -> real_t {
       if constexpr (D != Dim::_1D) {
         const real_t exp_chi { math::exp(x1 * dchi + chi_min) };
         if (small_angle) {
@@ -216,7 +216,7 @@ namespace metric {
      * component-wise coordinate conversions
      */
     template <idx_t i, Crd in, Crd out>
-    Inline auto convert(const real_t& x_in) const -> real_t {
+    Inline auto convert(real_t x_in) const -> real_t {
       static_assert(in != out, "Invalid coordinate conversion");
       static_assert(i > 0 && i <= 3, "Invalid index i");
       static_assert((in == Crd::Cd && (out == Crd::Sph || out == Crd::Ph)) ||
@@ -307,7 +307,7 @@ namespace metric {
      * @note tetrad/sph <-> cntrv <-> cov
      */
     template <idx_t i, Idx in, Idx out>
-    Inline auto transform(const coord_t<D>& xi, const real_t& v_in) const -> real_t {
+    Inline auto transform(const coord_t<D>& xi, real_t v_in) const -> real_t {
       static_assert(i > 0 && i <= 3, "Invalid index i");
       static_assert(in != out, "Invalid vector transformation");
       if constexpr ((in == Idx::T && out == Idx::Sph) ||
@@ -440,7 +440,7 @@ namespace metric {
     /**
      * @brief Compute d(th) / d(eta) for a given eta.
      */
-    Inline auto dtheta_deta(const real_t& eta) const -> real_t {
+    Inline auto dtheta_deta(real_t eta) const -> real_t {
       if (cmp::AlmostZero(h)) {
         return ONE;
       } else {
@@ -453,7 +453,7 @@ namespace metric {
     /**
      * @brief Convert quasi-spherical eta to spherical theta.
      */
-    Inline auto eta2theta(const real_t& eta) const -> real_t {
+    Inline auto eta2theta(real_t eta) const -> real_t {
       if (cmp::AlmostZero(h)) {
         return eta;
       } else {
@@ -465,7 +465,7 @@ namespace metric {
     /**
      * @brief Convert spherical theta to quasi-spherical eta.
      */
-    Inline auto theta2eta(const real_t& theta) const -> real_t {
+    Inline auto theta2eta(real_t theta) const -> real_t {
       if (cmp::AlmostZero(h)) {
         return theta;
       } else {

@@ -175,7 +175,7 @@ void testPusher(const std::vector<std::size_t>& res) {
                                                      ZERO, coeff, dt,
                                                      nx1, nx2, nx3,
                                                      boundaries,
-                                                     ZERO, ZERO, ZERO));
+                                                     ZERO, ZERO, ZERO, ZERO));
 
     Kokkos::parallel_for(
       "pusher",
@@ -194,7 +194,7 @@ void testPusher(const std::vector<std::size_t>& res) {
                                                      ZERO, coeff, dt,
                                                      nx1, nx2, nx3,
                                                      boundaries,
-                                                     ZERO, ZERO, ZERO));
+                                                     ZERO, ZERO, ZERO, ZERO));
 
     auto i1_prev_ = Kokkos::create_mirror_view(i1_prev);
     auto i2_prev_ = Kokkos::create_mirror_view(i2_prev);

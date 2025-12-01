@@ -41,19 +41,19 @@ namespace metric {
     const real_t dr, dtheta, dphi;
     const real_t dr_inv, dtheta_inv, dphi_inv;
 
-    Inline auto Delta(const real_t& r) const -> real_t {
+    Inline auto Delta(real_t r) const -> real_t {
       return SQR(r) - TWO * r + SQR(a);
     }
 
-    Inline auto Sigma(const real_t& r, const real_t& theta) const -> real_t {
+    Inline auto Sigma(real_t r, real_t theta) const -> real_t {
       return SQR(r) + SQR(a) * SQR(math::cos(theta));
     }
 
-    Inline auto A(const real_t& r, const real_t& theta) const -> real_t {
+    Inline auto A(real_t r, real_t theta) const -> real_t {
       return SQR(SQR(r) + SQR(a)) - SQR(a) * Delta(r) * SQR(math::sin(theta));
     }
 
-    Inline auto z(const real_t& r, const real_t& theta) const -> real_t {
+    Inline auto z(real_t r, real_t theta) const -> real_t {
       return TWO * r / Sigma(r, theta);
     }
 
@@ -92,17 +92,17 @@ namespace metric {
     ~KerrSchild() = default;
 
     [[nodiscard]]
-    Inline auto spin() const -> const real_t& {
+    Inline auto spin() const -> real_t {
       return a;
     }
 
     [[nodiscard]]
-    Inline auto rhorizon() const -> const real_t& {
+    Inline auto rhorizon() const -> real_t {
       return rh_;
     }
 
     [[nodiscard]]
-    Inline auto rg() const -> const real_t& {
+    Inline auto rg() const -> real_t {
       return rg_;
     }
 
@@ -340,7 +340,7 @@ namespace metric {
      * dtheta derivative of Sigma
      * @param x coordinate array in code units
      */
-    Inline auto dt_Sigma(const real_t& theta) const -> real_t {
+    Inline auto dt_Sigma(real_t theta) const -> real_t {
       const real_t dt_Sigma { -TWO * SQR(a) * math::sin(theta) *
                               math::cos(theta) * dtheta };
       if (cmp::AlmostZero(dt_Sigma)) {
@@ -354,7 +354,7 @@ namespace metric {
      * dtheta derivative of A
      * @param x coordinate array in code units
      */
-    Inline auto dt_A(const real_t& r, const real_t& theta) const -> real_t {
+    Inline auto dt_A(real_t r, real_t theta) const -> real_t {
       const real_t dt_A { -TWO * SQR(a) * math::sin(theta) * math::cos(theta) *
                           Delta(r) * dtheta };
       if (cmp::AlmostZero(dt_A)) {
@@ -444,7 +444,7 @@ namespace metric {
      * differential area at the pole (used in axisymmetric solvers)
      * @param x1 radial coordinate along the axis (code units)
      */
-    Inline auto polar_area(const real_t& x1) const -> real_t {
+    Inline auto polar_area(real_t x1) const -> real_t {
       return dr * (SQR(x1 * dr + x1_min) + SQR(a)) *
              math::sqrt(ONE + TWO * (x1 * dr + x1_min) /
                                 (SQR(x1 * dr + x1_min) + SQR(a))) *
@@ -455,7 +455,7 @@ namespace metric {
      * component-wise coordinate conversions
      */
     template <idx_t i, Crd in, Crd out>
-    Inline auto convert(const real_t& x_in) const -> real_t {
+    Inline auto convert(real_t x_in) const -> real_t {
       static_assert(in != out, "Invalid coordinate conversion");
       static_assert(i > 0 && i <= 3, "Invalid index i");
       static_assert((in == Crd::Cd && (out == Crd::Sph || out == Crd::Ph)) ||

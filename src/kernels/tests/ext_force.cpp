@@ -53,21 +53,15 @@ struct Force {
 
   Force(real_t force) : force { force } {}
 
-  Inline auto fx1(const spidx_t&,
-                  const simtime_t&,
-                  const coord_t<Dim::_3D>&) const -> real_t {
+  Inline auto fx1(spidx_t, simtime_t, const coord_t<Dim::_3D>&) const -> real_t {
     return force * math::sin(ONE) * math::sin(ONE);
   }
 
-  Inline auto fx2(const spidx_t&,
-                  const simtime_t&,
-                  const coord_t<Dim::_3D>&) const -> real_t {
+  Inline auto fx2(spidx_t, simtime_t, const coord_t<Dim::_3D>&) const -> real_t {
     return force * math::sin(ONE) * math::cos(ONE);
   }
 
-  Inline auto fx3(const spidx_t&,
-                  const simtime_t&,
-                  const coord_t<Dim::_3D>&) const -> real_t {
+  Inline auto fx3(spidx_t, simtime_t, const coord_t<Dim::_3D>&) const -> real_t {
     return force * math::cos(ONE);
   }
 
@@ -203,7 +197,7 @@ void testPusher(const std::vector<std::size_t>& res) {
                                                      (simtime_t)time, coeff, dt,
                                                      nx1, nx2, nx3,
                                                      boundaries,
-                                                     ZERO, ZERO, ZERO));
+                                                     ZERO, ZERO, ZERO, ZERO));
 
     auto i1_prev_ = Kokkos::create_mirror_view(i1_prev);
     auto i2_prev_ = Kokkos::create_mirror_view(i2_prev);

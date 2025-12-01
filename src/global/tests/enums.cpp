@@ -65,7 +65,7 @@ auto main() -> int {
                                   "atmosphere", "custom",    "horizon",
                                   "axis",       "conductor", "sync" };
   enum_str_t all_particle_pushers = { "boris", "vay", "photon", "none" };
-  enum_str_t all_coolings         = { "synchrotron", "none" };
+  enum_str_t all_coolings         = { "synchrotron", "compton", "none" };
 
   enum_str_t all_out_flds = { "e",      "dive", "d",    "divd", "b",
                               "h",      "j",    "a",    "t",    "rho",
