@@ -163,8 +163,7 @@ namespace kernel {
           if (mass == ZERO) {
             energy = NORM(u_Phys[0], u_Phys[1], u_Phys[2]);
           } else {
-            energy = mass *
-                     math::sqrt(ONE + NORM_SQR(u_Phys[0], u_Phys[1], u_Phys[2]));
+            energy = math::sqrt(ONE + NORM_SQR(u_Phys[0], u_Phys[1], u_Phys[2]));
           }
         } else {
           // GR
@@ -185,7 +184,7 @@ namespace kernel {
           if (mass == ZERO) {
             energy = math::sqrt(energy);
           } else {
-            energy = mass * math::sqrt(ONE + energy);
+            energy = math::sqrt(ONE + energy);
           }
           metric.template transform<Idx::U, Idx::PU>(x_Code, u_Cntrv, u_Phys);
         }
