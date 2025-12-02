@@ -3,18 +3,13 @@
 #include "arch/traits.h"
 #include "utils/error.h"
 
-#include "metrics/kerr_schild.h"
-#include "metrics/kerr_schild_0.h"
-#include "metrics/minkowski.h"
-#include "metrics/qkerr_schild.h"
-#include "metrics/qspherical.h"
-#include "metrics/spherical.h"
+#include "engine_registry.h"
 
 #include "framework/simulation.h"
 
-#include "engines/grpic.hpp"
-#include "engines/srpic.hpp"
 #include "pgen.hpp"
+
+#include <utility>
 
 template <ntt::SimEngine::type S, template <Dimension> class M, Dimension D>
 static constexpr bool should_compile {
@@ -30,87 +25,85 @@ void shouldCompile(ntt::Simulation& sim) {
   }
 }
 
+template <ntt::SimEngine::type S, ntt::Metric::type M, Dimension D>
+[[nodiscard]] constexpr bool registryContainsSupportedCombo() {
+  bool is_supported = false;
+
+#define NTT_CHECK_REGISTRY_ENTRY(E, METRIC, DIM)                                           \
+  if (!is_supported && E<METRIC<DIM>>::S == S && METRIC<DIM>::MetricType == M && DIM == D) \
+    is_supported = should_compile<E<METRIC<DIM>>::S, METRIC, DIM>;
+
+  NTT_ENGINE_METRIC_DIMENSION_REGISTRY(NTT_CHECK_REGISTRY_ENTRY)
+
+#undef NTT_CHECK_REGISTRY_ENTRY
+
+  return is_supported;
+}
+
+template <ntt::SimEngine::type S, ntt::Metric::type M, int... Ds>
+[[nodiscard]] constexpr bool registryCoversMetric(std::integer_sequence<int, Ds...>) {
+  bool covered = true;
+
+  ((covered =
+      covered && registryContainsSupportedCombo<S, M, static_cast<Dimension>(Ds)>()),
+   ...);
+
+  return covered;
+}
+
+template <ntt::SimEngine::type S, int... Ms, int... Ds>
+[[nodiscard]] constexpr bool registryCoversEngine(
+  std::integer_sequence<int, Ms...> metrics, std::integer_sequence<int, Ds...> dimensions) {
+  bool covered = true;
+
+  ((covered = covered &&
+                registryCoversMetric<S, static_cast<ntt::Metric::type>(Ms)>(dimensions)),
+   ...);
+
+  return covered;
+}
+
+template <class PGen, int... Es, int... Ms, int... Ds>
+[[nodiscard]] constexpr bool registryCoversPGen(std::integer_sequence<int, Es...> engines,
+                                                std::integer_sequence<int, Ms...> metrics,
+                                                std::integer_sequence<int, Ds...> dimensions) {
+  bool covered = true;
+
+  (void)sizeof(PGen);
+
+  ((covered = covered && registryCoversEngine<static_cast<ntt::SimEngine::type>(Es)>(
+                    metrics, dimensions)),
+   ...);
+
+  return covered;
+}
+
+using ActivePGen =
+  user::PGen<ntt::SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>; // type only used for traits
+
+static_assert(
+  registryCoversPGen<ActivePGen>(
+    ActivePGen::engines, ActivePGen::metrics, ActivePGen::dimensions),
+  "Problem generator compatibility lists include combinations missing from the registry. "
+  "Add the new engine/metric/dimension triplets to NTT_ENGINE_METRIC_DIMENSION_REGISTRY.");
+
 auto main(int argc, char* argv[]) -> int {
   ntt::Simulation sim { argc, argv };
-  const auto      is_srpic = sim.requested_engine() == ntt::SimEngine::SRPIC;
-  const auto      is_grpic = sim.requested_engine() == ntt::SimEngine::GRPIC;
-  const auto is_minkowski  = sim.requested_metric() == ntt::Metric::Minkowski;
-  const auto is_spherical  = sim.requested_metric() == ntt::Metric::Spherical;
-  const auto is_qspherical = sim.requested_metric() == ntt::Metric::QSpherical;
-  const auto is_kerr_schild = sim.requested_metric() == ntt::Metric::Kerr_Schild;
-  const auto is_qkerr_schild = sim.requested_metric() == ntt::Metric::QKerr_Schild;
-  const auto is_kerr_schild_0 = sim.requested_metric() ==
-                                ntt::Metric::Kerr_Schild_0;
-  const auto is_1d = sim.requested_dimension() == Dim::_1D;
-  const auto is_2d = sim.requested_dimension() == Dim::_2D;
-  const auto is_3d = sim.requested_dimension() == Dim::_3D;
+  bool dispatched = false;
 
-  // sanity checks
-  if (not is_srpic and not is_grpic) {
-    raise::Fatal("Invalid engine", HERE);
+#define NTT_DISPATCH_REGISTRY_ENTRY(E, M, D)                                                 \
+  if (!dispatched && sim.requested_engine() == E<M<D>>::S &&                                 \
+      sim.requested_metric() == M<D>::MetricType &&                                         \
+      sim.requested_dimension() == D) {                                                      \
+    shouldCompile<E, M, D>(sim);                                                             \
+    dispatched = true;                                                                       \
   }
 
-  if (not is_minkowski and not is_spherical and not is_qspherical and
-      not is_kerr_schild and not is_qkerr_schild and not is_kerr_schild_0) {
-    raise::Fatal("Invalid metric", HERE);
-  }
+  NTT_ENGINE_METRIC_DIMENSION_REGISTRY(NTT_DISPATCH_REGISTRY_ENTRY)
+#undef NTT_DISPATCH_REGISTRY_ENTRY
 
-  if (not is_1d and not is_2d and not is_3d) {
-    raise::Fatal("Invalid dimension", HERE);
-  }
-
-  if (is_srpic and not(is_minkowski or is_spherical or is_qspherical)) {
-    raise::Fatal("Invalid metric for SRPIC", HERE);
-  }
-
-  if (is_grpic and not(is_kerr_schild or is_qkerr_schild or is_kerr_schild_0)) {
-    raise::Fatal("Invalid metric for GRPIC", HERE);
-  }
-
-  if ((is_spherical or is_qspherical or is_kerr_schild or is_qkerr_schild or
-       is_kerr_schild_0) and
-      (is_1d or is_3d)) {
-    raise::Fatal("Invalid dimension for metric", HERE);
-  }
-
-  if (is_srpic and is_minkowski and is_1d) {
-    shouldCompile<ntt::SRPICEngine, metric::Minkowski, Dim::_1D>(sim);
-    return 0;
-  }
-
-  if (is_srpic and is_minkowski and is_2d) {
-    shouldCompile<ntt::SRPICEngine, metric::Minkowski, Dim::_2D>(sim);
-    return 0;
-  }
-
-  if (is_srpic and is_minkowski and is_3d) {
-    shouldCompile<ntt::SRPICEngine, metric::Minkowski, Dim::_3D>(sim);
-    return 0;
-  }
-
-  if (is_srpic and is_spherical and is_2d) {
-    shouldCompile<ntt::SRPICEngine, metric::Spherical, Dim::_2D>(sim);
-    return 0;
-  }
-
-  if (is_srpic and is_qspherical and is_2d) {
-    shouldCompile<ntt::SRPICEngine, metric::QSpherical, Dim::_2D>(sim);
-    return 0;
-  }
-
-  if (is_grpic and is_kerr_schild and is_2d) {
-    shouldCompile<ntt::GRPICEngine, metric::KerrSchild, Dim::_2D>(sim);
-    return 0;
-  }
-
-  if (is_grpic and is_qkerr_schild and is_2d) {
-    shouldCompile<ntt::GRPICEngine, metric::QKerrSchild, Dim::_2D>(sim);
-    return 0;
-  }
-
-  if (is_grpic and is_kerr_schild_0 and is_2d) {
-    shouldCompile<ntt::GRPICEngine, metric::KerrSchild0, Dim::_2D>(sim);
-    return 0;
+  if (!dispatched) {
+    raise::Fatal("Invalid engine/metric/dimension combination", HERE);
   }
 
   return 0;
