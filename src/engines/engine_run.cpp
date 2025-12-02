@@ -3,11 +3,11 @@
 #include "arch/traits.h"
 #include "utils/diag.h"
 
-#include "engine_registry.h"
-
 #include "framework/domain/domain.h"
 
 #include "engines/engine.hpp"
+
+#include "engine_registry.h"
 
 namespace ntt {
 
@@ -138,7 +138,8 @@ namespace ntt {
     }
   }
 
-#define NTT_INSTANTIATE_ENGINE_RUN(E, M, D) template void Engine<E<M<D>>::S, M<D>>::run();
+#define NTT_INSTANTIATE_ENGINE_RUN(E, M, D)                                    \
+  template void Engine<E<M<D>>::S, M<D>>::run();
   NTT_ENGINE_METRIC_DIMENSION_REGISTRY(NTT_INSTANTIATE_ENGINE_RUN)
 #undef NTT_INSTANTIATE_ENGINE_RUN
 

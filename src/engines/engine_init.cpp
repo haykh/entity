@@ -3,8 +3,6 @@
 
 #include "arch/traits.h"
 
-#include "engine_registry.h"
-
 #include "archetypes/field_setter.h"
 
 #include "engines/engine.hpp"
@@ -12,6 +10,8 @@
 #include <Kokkos_Core.hpp>
 
 #include <string>
+
+#include "engine_registry.h"
 
 namespace ntt {
 

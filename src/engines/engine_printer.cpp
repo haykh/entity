@@ -6,9 +6,9 @@
 #include "utils/colors.h"
 #include "utils/formatting.h"
 
-#include "engine_registry.h"
-
 #include "engines/engine.hpp"
+
+#include "engine_registry.h"
 
 #if defined(CUDA_ENABLED)
   #include <cuda_runtime.h>
@@ -484,7 +484,7 @@ namespace ntt {
     }
   }
 
-#define NTT_INSTANTIATE_ENGINE_REPORT(E, M, D)                                               \
+#define NTT_INSTANTIATE_ENGINE_REPORT(E, M, D)                                 \
   template void Engine<E<M<D>>::S, M<D>>::print_report() const;
   NTT_ENGINE_METRIC_DIMENSION_REGISTRY(NTT_INSTANTIATE_ENGINE_REPORT)
 #undef NTT_INSTANTIATE_ENGINE_REPORT
