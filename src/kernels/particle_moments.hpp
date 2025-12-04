@@ -164,7 +164,7 @@ namespace kernel {
             energy = NORM(u_Phys[0], u_Phys[1], u_Phys[2]);
           } else {
             energy = mass *
-                     math::sqrt(ONE + NORM_SQR(u_Phys[0], u_Phys[1], u_Phys[2]));
+              math::sqrt(ONE + NORM_SQR(u_Phys[0], u_Phys[1], u_Phys[2]));
           }
         } else {
           // GR
@@ -196,7 +196,7 @@ namespace kernel {
           if (c == 0) {
             coeff *= energy;
           } else {
-            coeff *= u_Phys[c - 1];
+            coeff *= ((mass == ZERO) ? ONE : mass) * u_Phys[c - 1];
           }
         }
       } else if constexpr (F == FldsID::V) {
