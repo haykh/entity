@@ -164,17 +164,17 @@ namespace ntt {
       HERE);
   }
 
-#define METADOMAIN_CHECKPOINTS(E, M, D)                                         \
-  template void Metadomain<E<M<D>>::S, M<D>>::InitCheckpointWriter(             \
+#define METADOMAIN_CHECKPOINTS(S, M, D)                                         \
+  template void Metadomain<S, M<D>>::InitCheckpointWriter(                     \
     adios2::ADIOS*,                                                             \
     const SimulationParams&);                                                   \
-  template auto Metadomain<E<M<D>>::S, M<D>>::WriteCheckpoint(                  \
+  template auto Metadomain<S, M<D>>::WriteCheckpoint(                          \
     const SimulationParams&,                                                    \
     timestep_t,                                                                 \
     timestep_t,                                                                 \
     simtime_t,                                                                  \
     simtime_t) -> bool;                                                         \
-  template void Metadomain<E<M<D>>::S, M<D>>::ContinueFromCheckpoint(           \
+  template void Metadomain<S, M<D>>::ContinueFromCheckpoint(                   \
     adios2::ADIOS*,                                                             \
     const SimulationParams&);
   NTT_FOREACH_SPECIALIZATION(METADOMAIN_CHECKPOINTS)

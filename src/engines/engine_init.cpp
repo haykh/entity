@@ -65,8 +65,8 @@ namespace ntt {
     print_report();
   }
 
-#define ENGINE_INIT(E, M, D)                                                    \
-  template class Engine<E<M<D>>::S, M<D>>;
+#define ENGINE_INIT(S, M, D)                                                    \
+  template class Engine<S, M<D>>;
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_INIT)
 

@@ -6,7 +6,11 @@
 #include "framework/simulation.h"
 #include "framework/specialization_registry.h"
 
+#include "engines/engine_traits.h"
+
 #include "pgen.hpp"
+
+#include <type_traits>
 
 template <ntt::SimEngine::type S, template <Dimension> class M, Dimension D>
 static constexpr bool should_compile {
@@ -15,10 +19,15 @@ static constexpr bool should_compile {
   traits::check_compatibility<D>::value(user::PGen<S, M<D>>::dimensions)
 };
 
-template <template <class> class E, template <Dimension> class M, Dimension D>
-void shouldCompile(ntt::Simulation& sim) {
-  if constexpr (should_compile<E<M<D>>::S, M, D>) {
-    sim.run<E, M, D>();
+template <ntt::SimEngine::type S, template <Dimension> class M, Dimension D>
+void dispatch_engine(ntt::Simulation& sim) {
+  if constexpr (S == SimEngine::SRPIC) {
+    sim.run<ntt::EngineSelector<S>::template type, M, D>();
+  } else if constexpr (S == SimEngine::GRPIC) {
+    sim.run<ntt::EngineSelector<S>::template type, M, D>();
+  } else {
+    static_assert(traits::always_false<std::integral_constant<SimEngine::type, S>>::value,
+                  "Unsupported engine");
   }
 }
 
@@ -38,7 +47,7 @@ auto main(int argc, char* argv[]) -> int {
         requested_d == Spec::dimension) {
       matched = true;
       if constexpr (should_compile<Spec::engine, Spec::MetricTemplateType, Spec::dimension>) {
-        sim.run<Spec::EngineTemplateType, Spec::MetricTemplateType, Spec::dimension>();
+        dispatch_engine<Spec::engine, Spec::MetricTemplateType, Spec::dimension>(sim);
         launched = true;
       } else {
         raise::Fatal("Requested configuration is not available for this problem generator", HERE);

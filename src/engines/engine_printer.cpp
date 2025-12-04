@@ -483,8 +483,8 @@ namespace ntt {
     }
   }
 
-#define ENGINE_PRINTER(E, M, D)                                                 \
-  template void Engine<E<M<D>>::S, M<D>>::print_report() const;
+#define ENGINE_PRINTER(S, M, D)                                                 \
+  template void Engine<S, M<D>>::print_report() const;
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_PRINTER)
 

@@ -816,9 +816,8 @@ namespace ntt {
   PARTICLES_OUTPUT_DECLARE(Dim::_2D, Coord::Qsph)
 #undef PARTICLES_OUTPUT_DECLARE
 
-#define PARTICLES_OUTPUT_WRITE(E, M, D)                                         \
-  template void Particles<M<D>::Dim, M<D>::CoordType>::OutputWrite<E<M<D>>::S, \
-                                                                   M<D>>(      \
+#define PARTICLES_OUTPUT_WRITE(S, M, D)                                         \
+  template void Particles<M<D>::Dim, M<D>::CoordType>::OutputWrite<S, M<D>>(   \
     adios2::IO&,                                                               \
     adios2::Engine&,                                                           \
     npart_t,                                                                   \

@@ -800,10 +800,10 @@ namespace ntt {
     return true;
   }
 
-#define METADOMAIN_OUTPUT(E, M, D)                                              \
-  template void Metadomain<E<M<D>>::S, M<D>>::InitWriter(adios2::ADIOS*,       \
-                                                         const SimulationParams&); \
-  template auto Metadomain<E<M<D>>::S, M<D>>::Write(                           \
+#define METADOMAIN_OUTPUT(S, M, D)                                              \
+  template void Metadomain<S, M<D>>::InitWriter(adios2::ADIOS*,                \
+                                                const SimulationParams&);      \
+  template auto Metadomain<S, M<D>>::Write(                                    \
     const SimulationParams&,                                                   \
     timestep_t,                                                                \
     timestep_t,                                                                \
@@ -814,15 +814,15 @@ namespace ntt {
                        index_t,                                                \
                        timestep_t,                                             \
                        simtime_t,                                              \
-                       const Domain<E<M<D>>::S, M<D>&)>) -> bool;
+                       const Domain<S, M<D>>&)>)-> bool;
 
   NTT_FOREACH_SPECIALIZATION(METADOMAIN_OUTPUT)
 
 #undef METADOMAIN_OUTPUT
 
 #if defined(MPI_ENABLED)
-  #define COMMVECTORPOTENTIAL(E, M, D)                                          \
-    template void Metadomain<E<M<D>>::S, M<D>>::CommunicateVectorPotential(unsigned short);
+  #define COMMVECTORPOTENTIAL(S, M, D)                                          \
+    template void Metadomain<S, M<D>>::CommunicateVectorPotential(unsigned short);
 
   NTT_FOREACH_SPECIALIZATION(COMMVECTORPOTENTIAL)
 

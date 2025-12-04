@@ -286,17 +286,16 @@ namespace ntt {
     return true;
   }
 
-#define METADOMAIN_STATS(E, M, D)                                                \
-  template void Metadomain<E<M<D>>::S, M<D>>::InitStatsWriter(                  \
-    const SimulationParams&, bool);                                             \
-  template auto Metadomain<E<M<D>>::S, M<D>>::WriteStats(                       \
+#define METADOMAIN_STATS(S, M, D)                                                \
+  template void Metadomain<S, M<D>>::InitStatsWriter(const SimulationParams&, bool); \
+  template auto Metadomain<S, M<D>>::WriteStats(                                \
     const SimulationParams&,                                                    \
     timestep_t,                                                                 \
     timestep_t,                                                                 \
     simtime_t,                                                                  \
     simtime_t,                                                                  \
     std::function<                                                              \
-      real_t(const std::string&, timestep_t, simtime_t, const Domain<E<M<D>>::S, M<D>&)>) -> bool;
+      real_t(const std::string&, timestep_t, simtime_t, const Domain<S, M<D>>&)>)-> bool;
 
   NTT_FOREACH_SPECIALIZATION(METADOMAIN_STATS)
 

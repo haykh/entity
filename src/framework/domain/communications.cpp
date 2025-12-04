@@ -677,17 +677,14 @@ namespace ntt {
     }
   }
 
-#define METADOMAIN_COMM(E, M, D)                                                \
-  template void Metadomain<E<M<D>>::S, M<D>>::CommunicateFields(               \
-    Domain<E<M<D>>::S, M<D>&, CommTags);                                       \
-  template void Metadomain<E<M<D>>::S, M<D>>::SynchronizeFields(               \
-    Domain<E<M<D>>::S, M<D>&,                                                 \
+#define METADOMAIN_COMM(S, M, D)                                                \
+  template void Metadomain<S, M<D>>::CommunicateFields(Domain<S, M<D>>&, CommTags); \
+  template void Metadomain<S, M<D>>::SynchronizeFields(                        \
+    Domain<S, M<D>>&,                                                         \
     CommTags,                                                                 \
     const range_tuple_t&);                                                    \
-  template void Metadomain<E<M<D>>::S, M<D>>::CommunicateParticles(            \
-    Domain<E<M<D>>::S, M<D>&);                                                \
-  template void Metadomain<E<M<D>>::S, M<D>>::RemoveDeadParticles(             \
-    Domain<E<M<D>>::S, M<D>&);
+  template void Metadomain<S, M<D>>::CommunicateParticles(Domain<S, M<D>>&);   \
+  template void Metadomain<S, M<D>>::RemoveDeadParticles(Domain<S, M<D>>&);
 
   NTT_FOREACH_SPECIALIZATION(METADOMAIN_COMM)
 

@@ -137,8 +137,8 @@ namespace ntt {
     }
   }
 
-#define ENGINE_RUN(E, M, D)                                                     \
-  template void Engine<E<M<D>>::S, M<D>>::run();
+#define ENGINE_RUN(S, M, D)                                                     \
+  template void Engine<S, M<D>>::run();
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_RUN)
 

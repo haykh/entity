@@ -530,8 +530,8 @@ namespace ntt {
     redefineBoundaries();
   }
 
-#define METADOMAIN_STRUCT(E, M, D)                                              \
-  template struct Metadomain<E<M<D>>::S, M<D>>;
+#define METADOMAIN_STRUCT(S, M, D)                                              \
+  template struct Metadomain<S, M<D>>;
 
   NTT_FOREACH_SPECIALIZATION(METADOMAIN_STRUCT)
 
