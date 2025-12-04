@@ -3,11 +3,16 @@
 #include "arch/traits.h"
 #include "utils/diag.h"
 
+#include "metrics/kerr_schild.h"
+#include "metrics/kerr_schild_0.h"
+#include "metrics/minkowski.h"
+#include "metrics/qkerr_schild.h"
+#include "metrics/qspherical.h"
+#include "metrics/spherical.h"
+
 #include "framework/domain/domain.h"
 
 #include "engines/engine.hpp"
-
-#include "engine_registry.h"
 
 namespace ntt {
 
@@ -138,9 +143,13 @@ namespace ntt {
     }
   }
 
-#define NTT_INSTANTIATE_ENGINE_RUN(E, M, D)                                    \
-  template void Engine<E<M<D>>::S, M<D>>::run();
-  NTT_ENGINE_METRIC_DIMENSION_REGISTRY(NTT_INSTANTIATE_ENGINE_RUN)
-#undef NTT_INSTANTIATE_ENGINE_RUN
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_2D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Minkowski<Dim::_3D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::Spherical<Dim::_2D>>::run();
+  template void Engine<SimEngine::SRPIC, metric::QSpherical<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>>::run();
+  template void Engine<SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>>::run();
 
 } // namespace ntt
