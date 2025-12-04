@@ -73,3 +73,35 @@ jobs:
         run: cmake --build build -j "$(nproc)"
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
+  pgens:
+    needs: check-commit
+    if: needs.check-commit.outputs.run_tests == 'true'
+    name: Build pgen=${{ matrix.pgen }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pgen: [streaming, turbulence, reconnection, shock, magnetosphere, accretion, wald]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install GCC 14 and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14 gfortran-14 build-essential wget libevent-dev libhwloc-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 50
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 50
+          sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 50
+          gcc --version
+          g++ --version
+      - name: Install CMake (3.x)
+        run: |
+          sudo apt-get install -y cmake
+          cmake --version
+      - name: Configure
+        run: |
+          cmake -B build -D pgen=${{ matrix.pgen }} -D output=OFF
+      - name: Compile
+        run: cmake --build build -j "$(nproc)"
