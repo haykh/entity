@@ -8,14 +8,9 @@
 #include "utils/error.h"
 #include "utils/tools.h"
 
-#include "metrics/kerr_schild.h"
-#include "metrics/kerr_schild_0.h"
-#include "metrics/minkowski.h"
-#include "metrics/qkerr_schild.h"
-#include "metrics/qspherical.h"
-#include "metrics/spherical.h"
-
 #include "framework/domain/domain.h"
+#include "framework/domain/domain.h"
+#include "framework/specialization_registry.h"
 
 #if defined(MPI_ENABLED)
   #include <mpi.h>
@@ -535,13 +530,11 @@ namespace ntt {
     redefineBoundaries();
   }
 
-  template struct Metadomain<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>>;
-  template struct Metadomain<SimEngine::SRPIC, metric::Minkowski<Dim::_2D>>;
-  template struct Metadomain<SimEngine::SRPIC, metric::Minkowski<Dim::_3D>>;
-  template struct Metadomain<SimEngine::SRPIC, metric::Spherical<Dim::_2D>>;
-  template struct Metadomain<SimEngine::SRPIC, metric::QSpherical<Dim::_2D>>;
-  template struct Metadomain<SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>>;
-  template struct Metadomain<SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>>;
-  template struct Metadomain<SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>>;
+#define METADOMAIN_STRUCT(S, M, D)                                              \
+  template struct Metadomain<S, M<D>>;
+
+  NTT_FOREACH_SPECIALIZATION(METADOMAIN_STRUCT)
+
+#undef METADOMAIN_STRUCT
 
 } // namespace ntt

@@ -16,6 +16,7 @@
 #include "framework/containers/particles.h"
 #include "framework/domain/domain.h"
 #include "framework/domain/metadomain.h"
+#include "framework/specialization_registry.h"
 #include "framework/parameters.h"
 
 #include "kernels/reduced_stats.hpp"
@@ -285,25 +286,18 @@ namespace ntt {
     return true;
   }
 
-#define METADOMAIN_STATS(S, M)                                                    \
-  template void Metadomain<S, M>::InitStatsWriter(const SimulationParams&, bool); \
-  template auto Metadomain<S, M>::WriteStats(                                     \
-    const SimulationParams&,                                                      \
-    timestep_t,                                                                   \
-    timestep_t,                                                                   \
-    simtime_t,                                                                    \
-    simtime_t,                                                                    \
-    std::function<                                                                \
-      real_t(const std::string&, timestep_t, simtime_t, const Domain<S, M>&)>) -> bool;
+#define METADOMAIN_STATS(S, M, D)                                                \
+  template void Metadomain<S, M<D>>::InitStatsWriter(const SimulationParams&, bool); \
+  template auto Metadomain<S, M<D>>::WriteStats(                                \
+    const SimulationParams&,                                                    \
+    timestep_t,                                                                 \
+    timestep_t,                                                                 \
+    simtime_t,                                                                  \
+    simtime_t,                                                                  \
+    std::function<                                                              \
+      real_t(const std::string&, timestep_t, simtime_t, const Domain<S, M<D>>&)>)-> bool;
 
-  METADOMAIN_STATS(SimEngine::SRPIC, metric::Minkowski<Dim::_1D>)
-  METADOMAIN_STATS(SimEngine::SRPIC, metric::Minkowski<Dim::_2D>)
-  METADOMAIN_STATS(SimEngine::SRPIC, metric::Minkowski<Dim::_3D>)
-  METADOMAIN_STATS(SimEngine::SRPIC, metric::Spherical<Dim::_2D>)
-  METADOMAIN_STATS(SimEngine::SRPIC, metric::QSpherical<Dim::_2D>)
-  METADOMAIN_STATS(SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>)
-  METADOMAIN_STATS(SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>)
-  METADOMAIN_STATS(SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>)
+  NTT_FOREACH_SPECIALIZATION(METADOMAIN_STATS)
 
 #undef METADOMAIN_STATS
 

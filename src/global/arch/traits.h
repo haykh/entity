@@ -168,6 +168,9 @@ namespace traits {
     static constexpr auto value = std::integer_sequence<int, Is...> {};
   };
 
+  template <typename>
+  struct always_false : std::false_type {};
+
   // generic
 
   template <typename T>
