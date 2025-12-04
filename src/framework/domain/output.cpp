@@ -810,7 +810,7 @@ namespace ntt {
     simtime_t,                                                                 \
     simtime_t,                                                                 \
     std::function<void(const std::string&,                                     \
-                       ndfield_t<M::Dim, 6>&,                                  \
+                       ndfield_t<M<D>::Dim, 6>&,                               \
                        index_t,                                                \
                        timestep_t,                                             \
                        simtime_t,                                              \
