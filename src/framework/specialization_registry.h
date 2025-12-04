@@ -24,7 +24,8 @@ namespace ntt {
             Dimension D>
   struct SpecializationEntry {
     using MetricType = MetricTemplate<D>;
-    using MetricTemplateType = MetricTemplate;
+    template <Dimension D2>
+    using MetricTemplateType = MetricTemplate<D2>;
 
     static constexpr auto engine     = S;
     static constexpr auto metric     = MetricType::MetricType;

@@ -46,8 +46,8 @@ auto main(int argc, char* argv[]) -> int {
     if (requested_e == Spec::engine && requested_m == Spec::metric &&
         requested_d == Spec::dimension) {
       matched = true;
-      if constexpr (should_compile<Spec::engine, Spec::MetricTemplateType, Spec::dimension>) {
-        dispatch_engine<Spec::engine, Spec::MetricTemplateType, Spec::dimension>(sim);
+      if constexpr (should_compile<Spec::engine, Spec::template MetricTemplateType, Spec::dimension>) {
+        dispatch_engine<Spec::engine, Spec::template MetricTemplateType, Spec::dimension>(sim);
         launched = true;
       } else {
         raise::Fatal("Requested configuration is not available for this problem generator", HERE);
