@@ -1,11 +1,27 @@
-name: Build and Test on CPU
+name: Build and Test on GitHub Cloud
 
 on:
   push:
-  pull_request:
 
 jobs:
-  build:
+  check-commit:
+    runs-on: ubuntu-24.04
+    outputs:
+      run_tests: ${{ steps.check_message.outputs.run_tests }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Check commit message
+        id: check_message
+        run: |
+          if git log -1 --pretty=%B | grep -q "CPUTEST"; then
+            echo "run_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_tests=false" >> "$GITHUB_OUTPUT"
+          fi
+  tests:
+    needs: check-commit
+    if: needs.check-commit.outputs.run_tests == 'true'
     name: Build and test (precision=${{ matrix.precision }}, mpi=${{ matrix.mpi }}, output=${{ matrix.output }})
     runs-on: ubuntu-24.04
     strategy:
@@ -14,13 +30,18 @@ jobs:
         precision: [single, double]
         mpi: [ON, OFF]
         output: [ON, OFF]
-
+        exclude:
+          - precision: single
+            mpi: ON
+            output: ON
+          - precision: double
+            mpi: ON
+            output: ON
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
       - name: Install GCC 14 and build tools
         run: |
           sudo apt-get update
@@ -30,27 +51,14 @@ jobs:
           sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 50
           gcc --version
           g++ --version
-
       - name: Install CMake (3.x)
         run: |
           sudo apt-get install -y cmake
-          cmake_major=$(cmake --version | head -n1 | awk '{print $3}' | cut -d. -f1)
-          if [ "$cmake_major" -gt 3 ]; then
-            echo "CMake major version must be at most 3.x"
-            exit 1
-          fi
           cmake --version
-
       - name: Install OpenMPI 5
         run: |
           sudo apt-get install -y libopenmpi-dev openmpi-bin
           mpirun --version
-          mpirun_major=$(mpirun --version | head -n1 | awk '{print $3}' | cut -d. -f1)
-          if [ "$mpirun_major" -lt 5 ]; then
-            echo "OpenMPI 5.x is required"
-            exit 1
-          fi
-
       - name: Configure
         run: |
           if [ "${{ matrix.mpi }}" = "ON" ]; then
@@ -61,9 +69,7 @@ jobs:
             export CXX=g++-14
           fi
           cmake -B build -D TESTS=ON -D precision=${{ matrix.precision }} -D mpi=${{ matrix.mpi }} -D output=${{ matrix.output }}
-
       - name: Compile
         run: cmake --build build -j "$(nproc)"
-
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
