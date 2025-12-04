@@ -1,4 +1,4 @@
-name: Build and Test on GitHub Cloud
+name: CPU Compilation/Unit Tests
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
   tests:
     needs: check-commit
     if: needs.check-commit.outputs.run_tests == 'true'
-    name: Build and test (precision=${{ matrix.precision }}, mpi=${{ matrix.mpi }}, output=${{ matrix.output }})
+    name: UNIT_TESTS (precision=${{ matrix.precision }}, mpi=${{ matrix.mpi }}, output=${{ matrix.output }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -76,7 +76,7 @@ jobs:
   pgens:
     needs: check-commit
     if: needs.check-commit.outputs.run_tests == 'true'
-    name: Build pgen=${{ matrix.pgen }}
+    name: PGENS (pgen=${{ matrix.pgen }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
