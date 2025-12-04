@@ -15,6 +15,7 @@
 #include "metrics/spherical.h"
 
 #include "framework/domain/metadomain.h"
+#include "framework/specialization_registry.h"
 #include "framework/parameters.h"
 
 namespace ntt {
@@ -163,24 +164,20 @@ namespace ntt {
       HERE);
   }
 
-#define METADOMAIN_CHECKPOINTS(S, M)                                             \
-  template void Metadomain<S, M>::InitCheckpointWriter(adios2::ADIOS*,           \
-                                                       const SimulationParams&); \
-  template auto Metadomain<S, M>::WriteCheckpoint(const SimulationParams&,       \
-                                                  timestep_t,                    \
-                                                  timestep_t,                    \
-                                                  simtime_t,                     \
-                                                  simtime_t) -> bool;            \
-  template void Metadomain<S, M>::ContinueFromCheckpoint(adios2::ADIOS*,         \
-                                                         const SimulationParams&);
-  METADOMAIN_CHECKPOINTS(SimEngine::SRPIC, metric::Minkowski<Dim::_1D>)
-  METADOMAIN_CHECKPOINTS(SimEngine::SRPIC, metric::Minkowski<Dim::_2D>)
-  METADOMAIN_CHECKPOINTS(SimEngine::SRPIC, metric::Minkowski<Dim::_3D>)
-  METADOMAIN_CHECKPOINTS(SimEngine::SRPIC, metric::Spherical<Dim::_2D>)
-  METADOMAIN_CHECKPOINTS(SimEngine::SRPIC, metric::QSpherical<Dim::_2D>)
-  METADOMAIN_CHECKPOINTS(SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>)
-  METADOMAIN_CHECKPOINTS(SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>)
-  METADOMAIN_CHECKPOINTS(SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>)
+#define METADOMAIN_CHECKPOINTS(E, M, D)                                         \
+  template void Metadomain<E<M<D>>::S, M<D>>::InitCheckpointWriter(             \
+    adios2::ADIOS*,                                                             \
+    const SimulationParams&);                                                   \
+  template auto Metadomain<E<M<D>>::S, M<D>>::WriteCheckpoint(                  \
+    const SimulationParams&,                                                    \
+    timestep_t,                                                                 \
+    timestep_t,                                                                 \
+    simtime_t,                                                                  \
+    simtime_t) -> bool;                                                         \
+  template void Metadomain<E<M<D>>::S, M<D>>::ContinueFromCheckpoint(           \
+    adios2::ADIOS*,                                                             \
+    const SimulationParams&);
+  NTT_FOREACH_SPECIALIZATION(METADOMAIN_CHECKPOINTS)
 #undef METADOMAIN_CHECKPOINTS
 
 } // namespace ntt

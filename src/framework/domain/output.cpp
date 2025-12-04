@@ -16,6 +16,7 @@
 #include "framework/containers/particles.h"
 #include "framework/domain/domain.h"
 #include "framework/domain/metadomain.h"
+#include "framework/specialization_registry.h"
 #include "framework/parameters.h"
 
 #include "kernels/divergences.hpp"
@@ -799,10 +800,10 @@ namespace ntt {
     return true;
   }
 
-#define METADOMAIN_OUTPUT(S, M)                                                \
-  template void Metadomain<S, M>::InitWriter(adios2::ADIOS*,                   \
-                                             const SimulationParams&);         \
-  template auto Metadomain<S, M>::Write(                                       \
+#define METADOMAIN_OUTPUT(E, M, D)                                              \
+  template void Metadomain<E<M<D>>::S, M<D>>::InitWriter(adios2::ADIOS*,       \
+                                                         const SimulationParams&); \
+  template auto Metadomain<E<M<D>>::S, M<D>>::Write(                           \
     const SimulationParams&,                                                   \
     timestep_t,                                                                \
     timestep_t,                                                                \
@@ -813,26 +814,17 @@ namespace ntt {
                        index_t,                                                \
                        timestep_t,                                             \
                        simtime_t,                                              \
-                       const Domain<S, M>&)>) -> bool;
+                       const Domain<E<M<D>>::S, M<D>&)>) -> bool;
 
-  METADOMAIN_OUTPUT(SimEngine::SRPIC, metric::Minkowski<Dim::_1D>)
-  METADOMAIN_OUTPUT(SimEngine::SRPIC, metric::Minkowski<Dim::_2D>)
-  METADOMAIN_OUTPUT(SimEngine::SRPIC, metric::Minkowski<Dim::_3D>)
-  METADOMAIN_OUTPUT(SimEngine::SRPIC, metric::Spherical<Dim::_2D>)
-  METADOMAIN_OUTPUT(SimEngine::SRPIC, metric::QSpherical<Dim::_2D>)
-  METADOMAIN_OUTPUT(SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>)
-  METADOMAIN_OUTPUT(SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>)
-  METADOMAIN_OUTPUT(SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>)
+  NTT_FOREACH_SPECIALIZATION(METADOMAIN_OUTPUT)
 
 #undef METADOMAIN_OUTPUT
 
 #if defined(MPI_ENABLED)
-  #define COMMVECTORPOTENTIAL(S, M)                                            \
-    template void Metadomain<S, M>::CommunicateVectorPotential(unsigned short);
+  #define COMMVECTORPOTENTIAL(E, M, D)                                          \
+    template void Metadomain<E<M<D>>::S, M<D>>::CommunicateVectorPotential(unsigned short);
 
-  COMMVECTORPOTENTIAL(SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>)
-  COMMVECTORPOTENTIAL(SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>)
-  COMMVECTORPOTENTIAL(SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>)
+  NTT_FOREACH_SPECIALIZATION(COMMVECTORPOTENTIAL)
 
   #undef COMMVECTORPOTENTIAL
 #endif

@@ -14,6 +14,7 @@
 #include "metrics/spherical.h"
 
 #include "framework/domain/metadomain.h"
+#include "framework/specialization_registry.h"
 
 #if defined(MPI_ENABLED)
   #include "arch/mpi_tags.h"
@@ -676,22 +677,19 @@ namespace ntt {
     }
   }
 
-#define METADOMAIN_COMM(S, M)                                                  \
-  template void Metadomain<S, M>::CommunicateFields(Domain<S, M>&, CommTags);  \
-  template void Metadomain<S, M>::SynchronizeFields(Domain<S, M>&,             \
-                                                    CommTags,                  \
-                                                    const range_tuple_t&);     \
-  template void Metadomain<S, M>::CommunicateParticles(Domain<S, M>&);         \
-  template void Metadomain<S, M>::RemoveDeadParticles(Domain<S, M>&);
+#define METADOMAIN_COMM(E, M, D)                                                \
+  template void Metadomain<E<M<D>>::S, M<D>>::CommunicateFields(               \
+    Domain<E<M<D>>::S, M<D>&, CommTags);                                       \
+  template void Metadomain<E<M<D>>::S, M<D>>::SynchronizeFields(               \
+    Domain<E<M<D>>::S, M<D>&,                                                 \
+    CommTags,                                                                 \
+    const range_tuple_t&);                                                    \
+  template void Metadomain<E<M<D>>::S, M<D>>::CommunicateParticles(            \
+    Domain<E<M<D>>::S, M<D>&);                                                \
+  template void Metadomain<E<M<D>>::S, M<D>>::RemoveDeadParticles(             \
+    Domain<E<M<D>>::S, M<D>&);
 
-  METADOMAIN_COMM(SimEngine::SRPIC, metric::Minkowski<Dim::_1D>)
-  METADOMAIN_COMM(SimEngine::SRPIC, metric::Minkowski<Dim::_2D>)
-  METADOMAIN_COMM(SimEngine::SRPIC, metric::Minkowski<Dim::_3D>)
-  METADOMAIN_COMM(SimEngine::SRPIC, metric::Spherical<Dim::_2D>)
-  METADOMAIN_COMM(SimEngine::SRPIC, metric::QSpherical<Dim::_2D>)
-  METADOMAIN_COMM(SimEngine::GRPIC, metric::KerrSchild<Dim::_2D>)
-  METADOMAIN_COMM(SimEngine::GRPIC, metric::QKerrSchild<Dim::_2D>)
-  METADOMAIN_COMM(SimEngine::GRPIC, metric::KerrSchild0<Dim::_2D>)
+  NTT_FOREACH_SPECIALIZATION(METADOMAIN_COMM)
 
 #undef METADOMAIN_COMM
 
