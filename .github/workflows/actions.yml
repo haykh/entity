@@ -94,13 +94,7 @@ jobs:
           cmake --version
       - name: Install OpenMPI 5
         run: |
-          wget -q https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.5.tar.gz
-          tar xf openmpi-5.0.5.tar.gz
-          cd openmpi-5.0.5
-          ./configure --prefix=/usr/local
-          make -j"$(nproc)"
-          sudo make install
-          sudo ldconfig
+          sudo apt-get install -y libopenmpi-dev openmpi-bin
           mpirun --version
       - name: Configure
         run: |
