@@ -498,18 +498,14 @@ namespace ntt {
   }
 
   template <SimEngine::type S, template <Dimension> class M, Dimension D>
-  struct EnginePrinterInstantiator {};
-
-  template <SimEngine::type S, template <Dimension> class M, Dimension D>
-    requires IsCompatibleWithPGen<S, M<D>>
-  struct EnginePrinterInstantiator<S, M, D> {
-    EnginePrinterInstantiator() {
+  void InstantiateEnginePrinter() {
+    if constexpr (IsCompatibleWithPGen<S, M<D>>) {
       (void)&Engine<S, M<D>>::print_report;
     }
-  };
+  }
 
 #define ENGINE_PRINTER(S, M, D)                                                \
-  template struct EnginePrinterInstantiator<S, M, D>;
+  template void InstantiateEnginePrinter<S, M, D>();
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_PRINTER)
 

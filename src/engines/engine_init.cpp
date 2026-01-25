@@ -65,17 +65,13 @@ namespace ntt {
   }
 
   template <SimEngine::type S, template <Dimension> class M, Dimension D>
-  struct EngineInitInstantiator {};
-
-  template <SimEngine::type S, template <Dimension> class M, Dimension D>
-    requires IsCompatibleWithPGen<S, M<D>>
-  struct EngineInitInstantiator<S, M, D> {
-    EngineInitInstantiator() {
+  void InstantiateEngineInit() {
+    if constexpr (IsCompatibleWithPGen<S, M<D>>) {
       (void)&Engine<S, M<D>>::init;
     }
-  };
+  }
 
-#define ENGINE_INIT(S, M, D) template struct EngineInitInstantiator<S, M, D>;
+#define ENGINE_INIT(S, M, D) template void InstantiateEngineInit<S, M, D>();
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_INIT)
 
