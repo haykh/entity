@@ -64,14 +64,9 @@ namespace ntt {
     print_report();
   }
 
-  template <SimEngine::type S, template <Dimension> class M, Dimension D>
-  void InstantiateEngineInit() {
-    if constexpr (IsCompatibleWithPGen<S, M<D>>) {
-      (void)&Engine<S, M<D>>::init;
-    }
-  }
-
-#define ENGINE_INIT(S, M, D) template void InstantiateEngineInit<S, M, D>();
+#define ENGINE_INIT(S, M, D)                                                   \
+  template void Engine<S, M<D>>::init()                                        \
+    requires IsCompatibleWithPGen<S, M<D>>;
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_INIT)
 

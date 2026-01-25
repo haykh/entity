@@ -497,15 +497,9 @@ namespace ntt {
     }
   }
 
-  template <SimEngine::type S, template <Dimension> class M, Dimension D>
-  void InstantiateEnginePrinter() {
-    if constexpr (IsCompatibleWithPGen<S, M<D>>) {
-      (void)&Engine<S, M<D>>::print_report;
-    }
-  }
-
 #define ENGINE_PRINTER(S, M, D)                                                \
-  template void InstantiateEnginePrinter<S, M, D>();
+  template void Engine<S, M<D>>::print_report() const                          \
+    requires IsCompatibleWithPGen<S, M<D>>;
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_PRINTER)
 

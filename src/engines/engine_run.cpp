@@ -138,14 +138,9 @@ namespace ntt {
     }
   }
 
-  template <SimEngine::type S, template <Dimension> class M, Dimension D>
-  void InstantiateEngineRun() {
-    if constexpr (IsCompatibleWithPGen<S, M<D>>) {
-      (void)&Engine<S, M<D>>::run;
-    }
-  }
-
-#define ENGINE_RUN(S, M, D) template void InstantiateEngineRun<S, M, D>();
+#define ENGINE_RUN(S, M, D)                                                    \
+  template void Engine<S, M<D>>::run()                                         \
+    requires IsCompatibleWithPGen<S, M<D>>;
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_RUN)
 
