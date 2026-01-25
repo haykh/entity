@@ -498,10 +498,11 @@ namespace ntt {
   }
 
   template <SimEngine::type S, template <Dimension> class M, Dimension D>
-    requires IsCompatibleWithPGen<S, M<D>>
   void InstantiateEnginePrinter() {
-    const auto* engine = static_cast<const Engine<S, M<D>>*>(nullptr);
-    engine->print_report();
+    if constexpr (IsCompatibleWithPGen<S, M<D>>) {
+      const auto* engine = static_cast<const Engine<S, M<D>>*>(nullptr);
+      engine->print_report();
+    }
   }
 
 #define ENGINE_PRINTER(S, M, D)                                                \

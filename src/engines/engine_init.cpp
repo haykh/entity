@@ -65,10 +65,11 @@ namespace ntt {
   }
 
   template <SimEngine::type S, template <Dimension> class M, Dimension D>
-    requires IsCompatibleWithPGen<S, M<D>>
   void InstantiateEngineInit() {
-    auto* engine = static_cast<Engine<S, M<D>>*>(nullptr);
-    engine->init();
+    if constexpr (IsCompatibleWithPGen<S, M<D>>) {
+      auto* engine = static_cast<Engine<S, M<D>>*>(nullptr);
+      engine->init();
+    }
   }
 
 #define ENGINE_INIT(S, M, D) template void InstantiateEngineInit<S, M, D>();
