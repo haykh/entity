@@ -35,10 +35,6 @@
     CFL        = 0.5
     correction = 1.0
 
-  [algorithms.toggles]
-    deposit     = true
-    fieldsolver = true
-
 [particles]
   ppc0           = 4.0
   use_weights    = true

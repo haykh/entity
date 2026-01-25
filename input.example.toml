@@ -269,6 +269,10 @@
   # Stencil coefficients for the field solver [notation as in Blinne+ (2018)]
   #   @note: Standard Yee solver: `delta_i = beta_ij = 0.0`
   [algorithms.fieldsolver]
+    # Enable the fieldsolver
+    #   @type: bool
+    #   @default: true
+    enable = ""
     # delta_x coefficient (for `F_{i +/- 3/2, j, k}`)
     #   @type: float
     #   @default: 0.0
