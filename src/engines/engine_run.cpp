@@ -138,7 +138,18 @@ namespace ntt {
     }
   }
 
-#define ENGINE_RUN(S, M, D) template void Engine<S, M<D>>::run();
+  template <SimEngine::type S, template <Dimension> class M, Dimension D>
+  struct EngineRunInstantiator {};
+
+  template <SimEngine::type S, template <Dimension> class M, Dimension D>
+    requires IsCompatibleWithPGen<S, M<D>>
+  struct EngineRunInstantiator<S, M, D> {
+    EngineRunInstantiator() {
+      (void)&Engine<S, M<D>>::run;
+    }
+  };
+
+#define ENGINE_RUN(S, M, D) template struct EngineRunInstantiator<S, M, D>;
 
   NTT_FOREACH_SPECIALIZATION(ENGINE_RUN)
 
