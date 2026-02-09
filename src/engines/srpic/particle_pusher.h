@@ -61,7 +61,7 @@ namespace ntt {
           pusher_params.dt,
           domain.index(),
           params,
-          domain.random_pool);
+          domain.random_pool());
         Kokkos::parallel_for(
           "ParticlePusher",
           range,

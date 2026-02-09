@@ -98,31 +98,21 @@ namespace logger {
                          const std::string& file,
                          const std::string& func,
                          int                line) {
-    // #if defined(DEBUG)
+#if defined(DEBUG)
     Kokkos::fence();
-#if defined(MPI_ENABLED)
+  #if defined(MPI_ENABLED)
     MPI_Barrier(MPI_COMM_WORLD);
+  #endif
 #endif
-// #endif
-#if defined(MPI_ENABLED)
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    std::string   filename = "checkpoint_rank_" + std::to_string(rank) + ".log";
-    std::ofstream checkpoint_file;
-    checkpoint_file.open(filename);
-    checkpoint_file << msg << std::endl;
-    checkpoint_file.close();
-#endif
-
-    // CallOnce(
-    //   [](auto& msg, auto& file, auto& func, auto& line) {
-    //     PLOGV_(LogFile) << "Checkpoint: " << file << ":" << line << " @ " <<
-    //     func; PLOGV_(LogFile) << " : message : " << msg;
-    //   },
-    //   msg,
-    //   file,
-    //   func,
-    //   line);
+    CallOnce(
+      [](auto& msg, auto& file, auto& func, auto& line) {
+        PLOGV_(LogFile) << "Checkpoint: " << file << ":" << line << " @ " << func;
+        PLOGV_(LogFile) << " : message : " << msg;
+      },
+      msg,
+      file,
+      func,
+      line);
   }
 
 } // namespace logger

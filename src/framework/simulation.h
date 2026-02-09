@@ -41,7 +41,7 @@ namespace ntt {
       using engine_t = E<M<D>>;
       try {
         engine_t engine { m_params };
-        // @HACK: engine.run();
+        engine.run();
       } catch (const std::exception& e) {
         raise::Fatal(e.what(), HERE);
       }

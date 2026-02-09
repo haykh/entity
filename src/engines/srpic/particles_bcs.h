@@ -104,7 +104,7 @@ namespace ntt {
 
       const auto maxwellian = arch::Maxwellian<SimEngine::SRPIC, M> {
         domain.mesh.metric,
-        domain.random_pool,
+        domain.random_pool(),
         temp
       };
 

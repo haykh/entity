@@ -257,7 +257,7 @@ namespace arch {
                              energy_dists.first,
                              energy_dists.second,
                              ONE / params.template get<real_t>("scales.V0"),
-                             domain.random_pool));
+                             domain.random_pool()));
       domain.species[species.first - 1].set_npart(
         domain.species[species.first - 1].npart() + nparticles);
       domain.species[species.second - 1].set_npart(
@@ -372,7 +372,7 @@ namespace arch {
         energy_dists.second,
         spatial_dist,
         ONE / params.template get<real_t>("scales.V0"),
-        domain.random_pool);
+        domain.random_pool());
       Kokkos::parallel_for("InjectNonUniformNumberDensity",
                            cell_range,
                            injector_kernel);
