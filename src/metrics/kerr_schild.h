@@ -40,6 +40,7 @@ namespace metric {
 
     const real_t dr, dtheta, dphi;
     const real_t dr_inv, dtheta_inv, dphi_inv;
+    const bool   small_angle;
 
     Inline auto Delta(real_t r) const -> real_t {
       return SQR(r) - TWO * r + SQR(a);
@@ -85,7 +86,8 @@ namespace metric {
       , dphi { (x3_max - x3_min) / nx3 }
       , dr_inv { ONE / dr }
       , dtheta_inv { ONE / dtheta }
-      , dphi_inv { ONE / dphi } {
+      , dphi_inv { ONE / dphi }
+      , small_angle { HALF * dtheta < constant::SMALL_ANGLE } {
       set_dxMin(find_dxMin());
     }
 
@@ -443,12 +445,21 @@ namespace metric {
     /**
      * differential area at the pole (used in axisymmetric solvers)
      * @param x1 radial coordinate along the axis (code units)
+     * @note uses small-angle approximation when the resolution is too high
      */
     Inline auto polar_area(real_t x1) const -> real_t {
-      return dr * (SQR(x1 * dr + x1_min) + SQR(a)) *
-             math::sqrt(ONE + TWO * (x1 * dr + x1_min) /
-                                (SQR(x1 * dr + x1_min) + SQR(a))) *
-             (ONE - math::cos(HALF * dtheta));
+      if (small_angle) {
+        return dr * (SQR(x1 * dr + x1_min) + SQR(a)) *
+              math::sqrt(ONE + TWO * (x1 * dr + x1_min) /
+                                  (SQR(x1 * dr + x1_min) + SQR(a))) *
+               (static_cast<real_t>(48) - SQR(dtheta)) * SQR(dtheta) /
+               static_cast<real_t>(384);
+      } else {
+        return dr * (SQR(x1 * dr + x1_min) + SQR(a)) *
+              math::sqrt(ONE + TWO * (x1 * dr + x1_min) /
+                                  (SQR(x1 * dr + x1_min) + SQR(a))) *
+              (ONE - math::cos(HALF * dtheta));
+      }
     }
 
     /**

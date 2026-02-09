@@ -335,7 +335,7 @@ namespace prtl_shape {
   //              - (161051/460800) * |x|^5 + (14641/276480) * |x|^6 - (1331/241920) * |x|^7 + (121/322560) * |x|^8 - (11/725760) * |x|^9 + (1/3628800) * |x|^10  if 4.5 < |x| ≤ 5.5
   //   0.0                                                                                                                                                        otherwise
   // clang-format on
-  inline real_t S10(const real_t x) {
+  Inline real_t S10(const real_t x) {
     if (x < HALF) {
       return static_cast<real_t>(381773117.0 / 928972800.0) -
              static_cast<real_t>(156409.0 / 737280.0) * SQR(x) +
@@ -434,7 +434,7 @@ namespace prtl_shape {
   //                  + (1/604800) * |x|^10 - (1/39916800) * |x|^11                                     if 5 ≤ |x| < 6
   //   0.0                                                                                              otherwise
   // clang-format on
-  inline real_t S11(const real_t x) {
+  Inline real_t S11(const real_t x) {
     if (x < ONE) {
       return static_cast<real_t>(655177.0 / 1663200.0) -
              static_cast<real_t>(809.0 / 4320.0) * SQR(x) +

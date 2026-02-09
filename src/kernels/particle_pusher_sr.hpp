@@ -27,7 +27,7 @@
 
 #include "metrics/traits.h"
 
-#include "kernels/emission.hpp"
+#include "kernels/emission/emission.hpp"
 #include "particle_shapes.hpp"
 
 #if defined(MPI_ENABLED)
@@ -217,6 +217,7 @@ namespace kernel::sr {
     array_t<prtldx_t*> dx1_prev, dx2_prev, dx3_prev;
     array_t<real_t*>   ux1, ux2, ux3;
     array_t<real_t*>   phi;
+    array_t<real_t*>   weight;
     array_t<short*>    tag;
   };
 
@@ -248,6 +249,7 @@ namespace kernel::sr {
     array_t<prtldx_t*> dx1_prev, dx2_prev, dx3_prev;
     array_t<real_t*>   ux1, ux2, ux3;
     array_t<real_t*>   phi;
+    array_t<real_t*>   weight;
     array_t<short*>    tag;
     const M            metric;
     const F            force;
@@ -303,6 +305,7 @@ namespace kernel::sr {
       , ux2 { pusher_arrays.ux2 }
       , ux3 { pusher_arrays.ux3 }
       , phi { pusher_arrays.phi }
+      , weight { pusher_arrays.weight }
       , tag { pusher_arrays.tag }
       , metric { metric }
       , force { force }
@@ -452,6 +455,45 @@ namespace kernel::sr {
       ux3(p) -= raddrag_coeff_compton * gamma_prime_sqr * u_prime[2];
     }
 
+    Inline void comptonEmission(index_t p, vec_t<Dim::_3D>& u_prime) const {
+      real_t          photon_energy { ZERO };
+      vec_t<Dim::_3D> delta_u_Ph { ZERO };
+      if (emission_policy.shouldEmit(u_prime, photon_energy, delta_u_Ph)) {
+        if (radiative_drag_flags & RadiativeDrag::COMPTON) {
+          ux1(p) += delta_u_Ph[0];
+          ux2(p) += delta_u_Ph[1];
+          ux3(p) += delta_u_Ph[2];
+        }
+        vec_t<Dim::_3D> direction { ZERO };
+        const auto      delta_u_Ph_mag = NORM(delta_u_Ph[0],
+                                         delta_u_Ph[1],
+                                         delta_u_Ph[2]);
+        direction[0]                   = delta_u_Ph[0] / delta_u_Ph_mag;
+        direction[1]                   = delta_u_Ph[1] / delta_u_Ph_mag;
+        direction[2]                   = delta_u_Ph[2] / delta_u_Ph_mag;
+        tuple_t<int, M::Dim>      xi_Cd { 0 };
+        tuple_t<prtldx_t, M::Dim> dxi_Cd { static_cast<prtldx_t>(0) };
+        real_t                    prtl_phi = ZERO;
+        if constexpr (M::Dim == Dim::_1D or M::Dim == Dim::_2D or
+                      M::Dim == Dim::_3D) {
+          xi_Cd[0]  = i1(p);
+          dxi_Cd[0] = dx1(p);
+        }
+        if constexpr (M::Dim == Dim::_2D or M::Dim == Dim::_3D) {
+          xi_Cd[1]  = i2(p);
+          dxi_Cd[1] = dx2(p);
+          if constexpr (M::CoordType != Coord::Cart) {
+            prtl_phi = phi(p);
+          }
+        }
+        if constexpr (M::Dim == Dim::_3D) {
+          xi_Cd[2]  = i3(p);
+          dxi_Cd[2] = dx3(p);
+        }
+        emission_policy.emit(xi_Cd, dxi_Cd, direction, photon_energy, weight(p), prtl_phi);
+      }
+    }
+
     Inline void operator()(index_t p) const {
       if (tag(p) != ParticleTag::alive) {
         if (tag(p) != ParticleTag::dead) {
@@ -550,20 +592,25 @@ namespace kernel::sr {
         }
       }
       // radiative drag
-      if (radiative_drag_flags & RadiativeDrag::SYNCHROTRON) {
-        if (!is_gca) {
+      if constexpr (not HasEmission) {
+        if ((not is_gca) and (radiative_drag_flags != RadiativeDrag::NONE)) {
           u_prime[0] = HALF * (u_prime[0] + ux1(p));
           u_prime[1] = HALF * (u_prime[1] + ux2(p));
           u_prime[2] = HALF * (u_prime[2] + ux3(p));
-          synchrotronDrag(p, u_prime, ei_Cart_rad, bi_Cart_rad);
+          if (radiative_drag_flags & RadiativeDrag::SYNCHROTRON) {
+            synchrotronDrag(p, u_prime, ei_Cart_rad, bi_Cart_rad);
+          }
+          if (radiative_drag_flags & RadiativeDrag::COMPTON) {
+            inverseComptonDrag(p, u_prime);
+          }
         }
-      }
-      if (radiative_drag_flags & RadiativeDrag::COMPTON) {
-        if (!is_gca) {
-          u_prime[0] = HALF * (u_prime[0] + ux1(p));
-          u_prime[1] = HALF * (u_prime[1] + ux2(p));
-          u_prime[2] = HALF * (u_prime[2] + ux3(p));
-          inverseComptonDrag(p, u_prime);
+      } else {
+        u_prime[0] = HALF * (u_prime[0] + ux1(p));
+        u_prime[1] = HALF * (u_prime[1] + ux2(p));
+        u_prime[2] = HALF * (u_prime[2] + ux3(p));
+        if constexpr (E == EmissionType::SYNCHROTRON) {
+        } else if constexpr (E == EmissionType::COMPTON) {
+          comptonEmission(p, u_prime);
         }
       }
       // update position

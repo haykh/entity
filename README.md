@@ -37,8 +37,8 @@ Maintainers indicated with an arrow.
 * :tipping_hand_person: Alexander Chernoglazov {[@SChernoglazov](https://github.com/SChernoglazov)}
 * :tea: Benjamin Crinquand {[@bcrinquand](https://github.com/bcrinquand)}
 * :bubble_tea: Alisa Galishnikova {[@alisagk](https://github.com/alisagk)}
-* :steam_locomotive: Evgeny Gorbunov {[@Alcauchy](https://github.com/Alcauchy)} [-> [haykh.astro [at] gmail](mailto:haykh.astro@gmail.com)]
-* :coffee: Hayk Hakobyan {[@haykh](https://github.com/haykh)} [-> [genegorbs [at] gmail](mailto:genegorbs@gmail.com)]
+* :steam_locomotive: Evgeny Gorbunov {[@Alcauchy](https://github.com/Alcauchy)} [-> [genegorbs [at] gmail](mailto:genegorbs@gmail.com)]
+* :coffee: Hayk Hakobyan {[@haykh](https://github.com/haykh)} [-> [haykh.astro [at] gmail](mailto:haykh.astro@gmail.com)]
 * :potato: Jens Mahlmann {[@jmahlmann](https://github.com/jmahlmann)}
 * :dolphin: Sasha Philippov {[@sashaph](https://github.com/sashaph)}
 * :radio: Siddhant Solanki {[@sidruns30](https://github.com/sidruns30)}

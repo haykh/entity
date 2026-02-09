@@ -38,6 +38,11 @@ namespace metric {
     };
 
     template <class M>
+    concept HasPrtlDim = requires {
+      { M::PrtlDim } -> std::convertible_to<Dimension>;
+    };
+
+    template <class M>
     concept HasCoordType = requires {
       { M::CoordType } -> std::convertible_to<ntt::Coord::type>;
     };

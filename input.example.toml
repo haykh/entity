@@ -225,6 +225,10 @@
       #   @type: float [> 0.0]
       #   @default: 1.0
       photon_weight = ""
+      # Sampling rate for the emitted synchrotron photons
+      #   @type: float [> 0.0]
+      #   @default: 1.0
+      photon_sampling = ""
       # Index of species for the emitted photon
       #   @type: ushort [> 0]
       #   @required
@@ -243,6 +247,10 @@
       #   @type: float [> 0.0]
       #   @default: 1.0
       photon_weight = ""
+      # Sampling rate for the emitted inverse Compton photons
+      #   @type: float [> 0.0]
+      #   @default: 1.0
+      photon_sampling = ""
       # Index of species for the emitted photon
       #   @type: ushort [> 0]
       #   @required
