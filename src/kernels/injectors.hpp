@@ -16,10 +16,12 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
 
+#include "metrics/traits.h"
+
+#include "archetypes/traits.h"
 #include "framework/containers/particles.h"
 #include "framework/domain/domain.h"
 
@@ -77,10 +79,11 @@ namespace kernel {
   }
 
   template <SimEngine::type S, class M, class ED1, class ED2>
-    requires traits::metric::HasD<M> && traits::metric::HasConvert<M> &&
-             ((S == SimEngine::SRPIC && traits::metric::HasTransformXYZ<M>) ||
-              (S == SimEngine::GRPIC && traits::metric::HasTransform<M>)) &&
-             traits::energydist::IsValid<ED1> && traits::energydist::IsValid<ED2>
+    requires metric::traits::HasD<M> && metric::traits::HasConvert<M> &&
+             ((S == SimEngine::SRPIC && metric::traits::HasTransformXYZ<M>) ||
+              (S == SimEngine::GRPIC && metric::traits::HasTransform<M>)) &&
+             arch::traits::energydist::IsValid<ED1> &&
+             arch::traits::energydist::IsValid<ED2>
   struct UniformInjector_kernel {
 
     array_t<int*>      i1s_1, i2s_1, i3s_1;
@@ -293,9 +296,9 @@ namespace kernel {
   }; // struct UniformInjector_kernel
 
   template <SimEngine::type S, class M>
-    requires traits::metric::HasD<M> && traits::metric::HasConvert<M> &&
-             ((S == SimEngine::SRPIC && traits::metric::HasTransformXYZ<M>) ||
-              (S == SimEngine::GRPIC && traits::metric::HasTransform<M>))
+    requires metric::traits::HasD<M> && metric::traits::HasConvert<M> &&
+             ((S == SimEngine::SRPIC && metric::traits::HasTransformXYZ<M>) ||
+              (S == SimEngine::GRPIC && metric::traits::HasTransform<M>))
   struct GlobalInjector_kernel {
     static constexpr auto D = M::Dim;
 
@@ -526,12 +529,13 @@ namespace kernel {
   }; // struct GlobalInjector_kernel
 
   template <SimEngine::type S, class M, class ED1, class ED2, class SD>
-    requires traits::metric::HasD<M> && traits::metric::HasConvert<M> &&
-             traits::metric::HasSqrtDetH<M> &&
-             ((S == SimEngine::SRPIC && traits::metric::HasTransformXYZ<M>) ||
-              (S == SimEngine::GRPIC && traits::metric::HasTransform<M>)) &&
-             traits::energydist::IsValid<ED1> &&
-             traits::energydist::IsValid<ED2> && traits::spatialdist::IsValid<SD>
+    requires metric::traits::HasD<M> && metric::traits::HasConvert<M> &&
+             metric::traits::HasSqrtDetH<M> &&
+             ((S == SimEngine::SRPIC && metric::traits::HasTransformXYZ<M>) ||
+              (S == SimEngine::GRPIC && metric::traits::HasTransform<M>)) &&
+             arch::traits::energydist::IsValid<ED1> &&
+             arch::traits::energydist::IsValid<ED2> &&
+             arch::traits::spatialdist::IsValid<SD>
   struct NonUniformInjector_kernel {
 
     const real_t ppc0;

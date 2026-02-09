@@ -17,10 +17,11 @@
 #include "global.h"
 
 #include "arch/directions.h"
-#include "arch/traits.h"
 #include "utils/comparators.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
+
+#include "metrics/traits.h"
 
 #include "framework/domain/grid.h"
 
@@ -32,7 +33,7 @@
 namespace ntt {
 
   template <class M>
-    requires traits::metric::HasD<M> && traits::metric::HasConvert_i<M>
+    requires metric::traits::HasD<M> && metric::traits::HasConvert_i<M>
   struct Mesh : public Grid<M::Dim> {
     static constexpr bool      is_mesh { true };
     static constexpr Dimension D { M::Dim };
@@ -132,9 +133,8 @@ namespace ntt {
      * @note indices are already shifted by N_GHOSTS (i.e. they start at N_GHOSTS not 0)
      */
     [[nodiscard]]
-    auto ExtentToRange(
-      boundaries_t<real_t> box,
-      boundaries_t<bool>   incl_ghosts) const -> boundaries_t<ncells_t> {
+    auto ExtentToRange(boundaries_t<real_t> box, boundaries_t<bool> incl_ghosts) const
+      -> boundaries_t<ncells_t> {
       raise::ErrorIf(box.size() != M::Dim, "Invalid box dimension", HERE);
       raise::ErrorIf(incl_ghosts.size() != M::Dim,
                      "Invalid incl_ghosts dimension",

@@ -3,6 +3,8 @@
  * @brief Particle pusher for the SR
  * @implements
  *   - kernel::sr::Pusher_kernel<>
+ *   - kernel::sr::PusherParams
+ *   - kernel::sr::PusherArrays
  * @namespaces:
  *   - kernel::sr::
  * @macros:
@@ -19,11 +21,13 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
 #include "utils/param_container.h"
 
+#include "metrics/traits.h"
+
+#include "kernels/emission.hpp"
 #include "particle_shapes.hpp"
 
 #if defined(MPI_ENABLED)
@@ -69,8 +73,8 @@ namespace kernel::sr {
    */
   template <Dimension D, Coord::type C, class F = NoForce_t, bool Atm = false>
   struct Force {
-    static constexpr auto ExtForce = not std::is_same<F, NoForce_t>::value;
-    static_assert(ExtForce or Atm,
+    static constexpr auto HasExtForce = not std::is_same<F, NoForce_t>::value;
+    static_assert(HasExtForce or Atm,
                   "Force initialized with neither PGen force nor gravity");
 
     const F      pgen_force;
@@ -96,7 +100,7 @@ namespace kernel::sr {
 
     Force(const vec_t<Dim::_3D>& g, real_t x_surf, real_t ds)
       : Force { NoForce_t {}, g, x_surf, ds } {
-      raise::ErrorIf(ExtForce, "External force not provided", HERE);
+      raise::ErrorIf(HasExtForce, "External force not provided", HERE);
     }
 
     Inline auto fx1(spidx_t           sp,
@@ -104,7 +108,7 @@ namespace kernel::sr {
                     bool              ext_force,
                     const coord_t<D>& x_Ph) const -> real_t {
       real_t f_x1 = ZERO;
-      if constexpr (ExtForce) {
+      if constexpr (HasExtForce) {
         if (ext_force) {
           f_x1 += pgen_force.fx1(sp, time, x_Ph);
         }
@@ -130,7 +134,7 @@ namespace kernel::sr {
                     bool              ext_force,
                     const coord_t<D>& x_Ph) const -> real_t {
       real_t f_x2 = ZERO;
-      if constexpr (ExtForce) {
+      if constexpr (HasExtForce) {
         if (ext_force) {
           f_x2 += pgen_force.fx2(sp, time, x_Ph);
         }
@@ -156,7 +160,7 @@ namespace kernel::sr {
                     bool              ext_force,
                     const coord_t<D>& x_Ph) const -> real_t {
       real_t f_x3 = ZERO;
-      if constexpr (ExtForce) {
+      if constexpr (HasExtForce) {
         if (ext_force) {
           f_x3 += pgen_force.fx3(sp, time, x_Ph);
         }
@@ -220,13 +224,14 @@ namespace kernel::sr {
    * @tparam M Metric
    * @tparam F Additional force
    */
-  template <class M, class F = NoForce_t>
-    requires traits::metric::HasD<M> && traits::metric::HasTransformXYZ<M> &&
-             traits::metric::HasConvertXYZ<M> &&
-             traits::metric::HasTransform_i<M> && traits::metric::HasConvert_i<M>
+  template <class M, class F = NoForce_t, EmissionTypeFlag E = EmissionType::NONE>
+    requires metric::traits::HasD<M> && metric::traits::HasTransformXYZ<M> &&
+             metric::traits::HasConvertXYZ<M> &&
+             metric::traits::HasTransform_i<M> && metric::traits::HasConvert_i<M>
   struct Pusher_kernel {
-    static constexpr auto D        = M::Dim;
-    static constexpr auto ExtForce = not std::is_same<F, NoForce_t>::value;
+    static constexpr auto D           = M::Dim;
+    static constexpr auto HasExtForce = not std::is_same<F, NoForce_t>::value;
+    static constexpr auto HasEmission = (E != EmissionType::NONE);
 
   private:
     const ParticlePusherFlags pusher_flags;
@@ -246,6 +251,8 @@ namespace kernel::sr {
     array_t<short*>    tag;
     const M            metric;
     const F            force;
+
+    const EmissionPolicy<M, E> emission_policy;
 
     const simtime_t time;
     const real_t    coeff, dt;
@@ -268,11 +275,13 @@ namespace kernel::sr {
     const real_t raddrag_coeff_synchrotron, raddrag_coeff_compton;
 
   public:
-    Pusher_kernel(const PusherParams&            pusher_params,
-                  PusherArrays&                  pusher_arrays,
-                  const randacc_ndfield_t<D, 6>& EB,
-                  const M&                       metric,
-                  const F&                       force = NoForce_t {})
+    Pusher_kernel(
+      const PusherParams&            pusher_params,
+      PusherArrays&                  pusher_arrays,
+      const randacc_ndfield_t<D, 6>& EB,
+      const M&                       metric,
+      const F&                       force           = NoForce_t {},
+      const EmissionPolicy<M, E>&    emission_policy = EmissionPolicy<M, E> {})
       : pusher_flags { pusher_params.pusher_flags }
       , radiative_drag_flags { pusher_params.radiative_drag_flags }
       , ext_force { pusher_params.ext_force }
@@ -320,14 +329,15 @@ namespace kernel::sr {
                                                    "synchrotron_gamma_rad")) *
                                            pusher_params.mass)
                                       : ZERO }
-      , raddrag_coeff_compton {
-        (pusher_params.radiative_drag_flags & RadiativeDrag::COMPTON)
-          ? static_cast<real_t>(0.1) * pusher_params.dt * pusher_params.omegaB0 /
-              (SQR(pusher_params.radiative_drag_params.get<real_t>(
-                 "compton_gamma_rad")) *
-               pusher_params.mass)
-          : ZERO
-      } {
+      , raddrag_coeff_compton { (pusher_params.radiative_drag_flags &
+                                 RadiativeDrag::COMPTON)
+                                  ? static_cast<real_t>(0.1) *
+                                      pusher_params.dt * pusher_params.omegaB0 /
+                                      (SQR(pusher_params.radiative_drag_params.get<real_t>(
+                                         "compton_gamma_rad")) *
+                                       pusher_params.mass)
+                                  : ZERO }
+      , emission_policy { emission_policy } {
       raise::ErrorIf(pusher_flags == ParticlePusher::NONE,
                      "No particle pusher specified",
                      HERE);
@@ -480,7 +490,7 @@ namespace kernel::sr {
         u_prime[1]     = ux2(p);
         u_prime[2]     = ux3(p);
       }
-      if constexpr (ExtForce) {
+      if constexpr (HasExtForce) {
         coord_t<M::PrtlDim> xp_Ph { ZERO };
         xp_Ph[0] = metric.template convert<1, Crd::Cd, Crd::Ph>(xp_Cd[0]);
         if constexpr (M::PrtlDim == Dim::_2D or M::PrtlDim == Dim::_3D) {
@@ -505,20 +515,20 @@ namespace kernel::sr {
         if (B2 > ZERO && rL < gca_larmor && (E2 / B2) < gca_EovrB_sqr) {
           is_gca = true;
           // update with GCA
-          if constexpr (ExtForce) {
+          if constexpr (HasExtForce) {
             velUpd(true, p, force_Cart, ei_Cart, bi_Cart);
           } else {
             velUpd(true, p, ei_Cart, bi_Cart);
           }
         } else {
           // update with conventional pusher
-          if constexpr (ExtForce) {
+          if constexpr (HasExtForce) {
             ux1(p) += HALF * dt * force_Cart[0];
             ux2(p) += HALF * dt * force_Cart[1];
             ux3(p) += HALF * dt * force_Cart[2];
           }
           velUpd(false, p, ei_Cart, bi_Cart);
-          if constexpr (ExtForce) {
+          if constexpr (HasExtForce) {
             ux1(p) += HALF * dt * force_Cart[0];
             ux2(p) += HALF * dt * force_Cart[1];
             ux3(p) += HALF * dt * force_Cart[2];
@@ -527,13 +537,13 @@ namespace kernel::sr {
       } else {
         /* conventional pusher mode ------------------------------------- */
         // update with conventional pusher
-        if constexpr (ExtForce) {
+        if constexpr (HasExtForce) {
           ux1(p) += HALF * dt * force_Cart[0];
           ux2(p) += HALF * dt * force_Cart[1];
           ux3(p) += HALF * dt * force_Cart[2];
         }
         velUpd(false, p, ei_Cart, bi_Cart);
-        if constexpr (ExtForce) {
+        if constexpr (HasExtForce) {
           ux1(p) += HALF * dt * force_Cart[0];
           ux2(p) += HALF * dt * force_Cart[1];
           ux3(p) += HALF * dt * force_Cart[2];

@@ -23,7 +23,7 @@
 #include "enums.h"
 #include "global.h"
 
-#include "arch/traits.h"
+#include "metrics/traits.h"
 
 #include "framework/parameters/parameters.h"
 
@@ -31,7 +31,7 @@ namespace arch {
   using namespace ntt;
 
   template <SimEngine::type S, class M>
-    requires traits::metric::HasD<M>
+    requires metric::traits::HasD<M> and metric::traits::HasCoordType<M>
   struct ProblemGenerator {
     static constexpr Dimension D { M::Dim };
     static constexpr Coord     C { M::CoordType };

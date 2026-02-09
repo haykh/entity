@@ -4,7 +4,7 @@
  * @implements
  *   - ntt::params::Algorithms
  * @cpp:
- *   - grid.cpp
+ *   - algorithms.cpp
  * @namespaces:
  *   - ntt::params::
  */

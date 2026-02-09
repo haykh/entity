@@ -39,6 +39,9 @@ namespace ntt {
     // Radiative drag mechanism(s) assigned for the species
     const RadiativeDragFlags m_radiative_drag_flags;
 
+    // Emission policy assigned for the species
+    const EmissionTypeFlag m_emission_policy_flag;
+
     // Number of payloads for the species
     const unsigned short m_npld_r;
     const unsigned short m_npld_i;
@@ -53,6 +56,7 @@ namespace ntt {
       , m_particle_pusher_flags { ParticlePusher::NONE }
       , m_use_tracking { false }
       , m_radiative_drag_flags { RadiativeDrag::NONE }
+      , m_emission_policy_flag { EmissionType::NONE }
       , m_npld_r { 0 }
       , m_npld_i { 0 } {}
 
@@ -67,6 +71,7 @@ namespace ntt {
      * @param particle_pusher_flags The pusher(s) assigned for the species.
      * @param use_tracking Use particle tracking for the species.
      * @param radiative_drag_flags The radiative drag mechanism(s) assigned for the species.
+     * @param emission_policy_flag The emission policy assigned for the species.
      * @param npld_r The number of real-valued payloads for the species
      * @param npld_i The number of integer-valued payloads for the species
      */
@@ -78,8 +83,9 @@ namespace ntt {
                     ParticlePusherFlags particle_pusher_flags,
                     bool                use_tracking,
                     RadiativeDragFlags  radiative_drag_flags,
-                    unsigned short      npld_r = 0,
-                    unsigned short      npld_i = 0)
+                    EmissionTypeFlag    emission_policy_flag,
+                    unsigned short      npld_r,
+                    unsigned short      npld_i)
       : m_index { index }
       , m_label { std::move(label) }
       , m_mass { m }
@@ -88,6 +94,7 @@ namespace ntt {
       , m_particle_pusher_flags { particle_pusher_flags }
       , m_use_tracking { use_tracking }
       , m_radiative_drag_flags { radiative_drag_flags }
+      , m_emission_policy_flag { emission_policy_flag }
       , m_npld_r { npld_r }
       , m_npld_i { npld_i } {
       if (use_tracking) {
@@ -149,6 +156,11 @@ namespace ntt {
     [[nodiscard]]
     auto radiative_drag_flags() const -> RadiativeDragFlags {
       return m_radiative_drag_flags;
+    }
+
+    [[nodiscard]]
+    auto emission_policy_flag() const -> EmissionTypeFlag {
+      return m_emission_policy_flag;
     }
 
     [[nodiscard]]

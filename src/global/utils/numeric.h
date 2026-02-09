@@ -26,8 +26,6 @@
 #ifndef GLOBAL_UTILS_NUMERIC_H
 #define GLOBAL_UTILS_NUMERIC_H
 
-#include "arch/kokkos_aliases.h"
-
 #include <cstdint>
 
 #if defined(SINGLE_PRECISION)
@@ -61,7 +59,7 @@ inline constexpr double ZERO          = 0.0;
 inline constexpr double HALF          = 0.5;
 inline constexpr double THIRD         = 0.3333333333333333;
 inline constexpr double THREE_FOURTHS = 0.75;
-inline constexpr float  THREE_HALFS   = 1.5;
+inline constexpr double THREE_HALFS   = 1.5;
 inline constexpr double INV_2         = 0.5;
 inline constexpr double INV_4         = 0.25;
 inline constexpr double INV_8         = 0.125;

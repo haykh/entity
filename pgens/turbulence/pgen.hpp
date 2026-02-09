@@ -9,8 +9,8 @@
 #include "utils/numeric.h"
 
 #include "archetypes/energy_dist.h"
-#include "archetypes/particle_injector.h"
 #include "archetypes/problem_generator.h"
+#include "archetypes/traits.h"
 #include "archetypes/utils.h"
 #include "framework/domain/domain.h"
 #include "framework/domain/metadomain.h"
@@ -293,9 +293,12 @@ namespace user {
   struct PGen : public arch::ProblemGenerator<S, M> {
 
     // compatibility traits for the problem generator
-    static constexpr auto engines = traits::compatible_with<SimEngine::SRPIC>::value;
-    static constexpr auto metrics = traits::compatible_with<Metric::Minkowski>::value;
-    static constexpr auto dimensions = traits::compatible_with<Dim::_2D, Dim::_3D>::value;
+    static constexpr auto engines =
+      arch::traits::pgen::compatible_with<SimEngine::SRPIC>::value;
+    static constexpr auto metrics =
+      arch::traits::pgen::compatible_with<Metric::Minkowski>::value;
+    static constexpr auto dimensions =
+      arch::traits::pgen::compatible_with<Dim::_2D, Dim::_3D>::value;
 
     // for easy access to variables in the child class
     using arch::ProblemGenerator<S, M>::D;

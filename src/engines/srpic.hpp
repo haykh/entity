@@ -23,6 +23,8 @@
 #include "utils/timer.h"
 #include "utils/toml.h"
 
+#include "metrics/traits.h"
+
 #include "archetypes/energy_dist.h"
 #include "archetypes/particle_injector.h"
 #include "archetypes/spatial_dist.h"
@@ -50,15 +52,13 @@ namespace ntt {
 
   template <class M>
     requires IsCompatibleWithEngine<SimEngine::SRPIC, M> &&
-             traits::metric::HasH_ij<M> && traits::metric::HasConvert_i<M> &&
-             traits::metric::HasSqrtH_ij<M>
+             metric::traits::HasH_ij<M> && metric::traits::HasConvert_i<M> &&
+             metric::traits::HasSqrtH_ij<M>
   class SRPICEngine : public Engine<SimEngine::SRPIC, M> {
 
     using base_t   = Engine<SimEngine::SRPIC, M>;
     using pgen_t   = user::PGen<SimEngine::SRPIC, M>;
     using domain_t = Domain<SimEngine::SRPIC, M>;
-    // constexprs
-    using base_t::pgen_is_ok;
     // contents
     using base_t::m_metadomain;
     using base_t::m_params;
@@ -348,13 +348,14 @@ namespace ntt {
         if (species.radiative_drag_flags() & RadiativeDrag::SYNCHROTRON) {
           pusher_params.radiative_drag_params.set(
             "synchrotron_gamma_rad",
-            m_params.template get<real_t>("algorithms.synchrotron.gamma_rad"));
+            m_params.template get<real_t>(
+              "radiation.drag.synchrotron.gamma_rad"));
         }
 
         if (species.radiative_drag_flags() & RadiativeDrag::COMPTON) {
           pusher_params.radiative_drag_params.set(
             "compton_gamma_rad",
-            m_params.template get<real_t>("algorithms.compton.gamma_rad"));
+            m_params.template get<real_t>("radiation.drag.compton.gamma_rad"));
         }
 
         kernel::sr::PusherArrays pusher_arrays {};
@@ -379,10 +380,11 @@ namespace ntt {
 
         // toggle to indicate whether pgen defines the external force
         bool has_extforce = false;
-        if constexpr (traits::pgen::HasExtForce<pgen_t>) {
+        if constexpr (arch::traits::pgen::HasExtForce<pgen_t>) {
           has_extforce = true;
           // toggle to indicate whether the ext force applies to current species
-          if (traits::has_member<traits::species_t, decltype(pgen_t::ext_force)>::value) {
+          if (
+            ::traits::has_member<::traits::species_t, decltype(pgen_t::ext_force)>::value) {
             has_extforce &= std::find(m_pgen.ext_force.species.begin(),
                                       m_pgen.ext_force.species.end(),
                                       species.index()) !=
@@ -415,7 +417,7 @@ namespace ntt {
                                                           domain.mesh.metric,
                                                           force));
         } else if (not has_atmosphere and has_extforce) {
-          if constexpr (traits::pgen::HasExtForce<pgen_t>) {
+          if constexpr (arch::traits::pgen::HasExtForce<pgen_t>) {
             const auto force =
               kernel::sr::Force<M::PrtlDim, M::CoordType, decltype(m_pgen.ext_force), false> {
                 m_pgen.ext_force
@@ -432,7 +434,7 @@ namespace ntt {
             raise::Error("External force not implemented", HERE);
           }
         } else { // has_atmosphere and has_extforce
-          if constexpr (traits::pgen::HasExtForce<pgen_t>) {
+          if constexpr (arch::traits::pgen::HasExtForce<pgen_t>) {
             const auto force =
               kernel::sr::Force<M::PrtlDim, M::CoordType, decltype(m_pgen.ext_force), true> {
                 m_pgen.ext_force,
@@ -514,7 +516,7 @@ namespace ntt {
         const auto V0    = m_params.template get<real_t>("scales.V0");
         const auto ppc0  = m_params.template get<real_t>("particles.ppc0");
         const auto coeff = -dt * q0 / (B0 * V0);
-        if constexpr (traits::pgen::HasExtCurrent<pgen_t>) {
+        if constexpr (arch::traits::pgen::HasExtCurrent<pgen_t>) {
           const std::vector<real_t> xmin { domain.mesh.extent(in::x1).first,
                                            domain.mesh.extent(in::x2).first,
                                            domain.mesh.extent(in::x3).first };
@@ -663,7 +665,7 @@ namespace ntt {
       }
 
       if (dim == in::x1) {
-        if constexpr (traits::pgen::HasMatchFields<pgen_t>) {
+        if constexpr (arch::traits::pgen::HasMatchFields<pgen_t>) {
           auto match_fields = m_pgen.MatchFields(time);
           call_match_fields<decltype(match_fields), in::x1>(domain.fields.em,
                                                             domain.mesh.flds_bc(),
@@ -674,7 +676,7 @@ namespace ntt {
                                                             tags,
                                                             range_min,
                                                             range_max);
-        } else if constexpr (traits::pgen::HasMatchFieldsInX1<pgen_t>) {
+        } else if constexpr (arch::traits::pgen::HasMatchFieldsInX1<pgen_t>) {
           auto match_fields = m_pgen.MatchFieldsInX1(time);
           call_match_fields<decltype(match_fields), in::x1>(domain.fields.em,
                                                             domain.mesh.flds_bc(),
@@ -688,7 +690,7 @@ namespace ntt {
         }
       } else if (dim == in::x2) {
         if constexpr (M::Dim == Dim::_2D or M::Dim == Dim::_3D) {
-          if constexpr (traits::pgen::HasMatchFields<pgen_t>) {
+          if constexpr (arch::traits::pgen::HasMatchFields<pgen_t>) {
             auto match_fields = m_pgen.MatchFields(time);
             call_match_fields<decltype(match_fields), in::x2>(domain.fields.em,
                                                               domain.mesh.flds_bc(),
@@ -699,7 +701,7 @@ namespace ntt {
                                                               tags,
                                                               range_min,
                                                               range_max);
-          } else if constexpr (traits::pgen::HasMatchFieldsInX2<pgen_t>) {
+          } else if constexpr (arch::traits::pgen::HasMatchFieldsInX2<pgen_t>) {
             auto match_fields = m_pgen.MatchFieldsInX2(time);
             call_match_fields<decltype(match_fields), in::x2>(domain.fields.em,
                                                               domain.mesh.flds_bc(),
@@ -716,7 +718,7 @@ namespace ntt {
         }
       } else if (dim == in::x3) {
         if constexpr (M::Dim == Dim::_3D) {
-          if constexpr (traits::pgen::HasMatchFields<pgen_t>) {
+          if constexpr (arch::traits::pgen::HasMatchFields<pgen_t>) {
             auto match_fields = m_pgen.MatchFields(time);
             call_match_fields<decltype(match_fields), in::x3>(domain.fields.em,
                                                               domain.mesh.flds_bc(),
@@ -727,7 +729,7 @@ namespace ntt {
                                                               tags,
                                                               range_min,
                                                               range_max);
-          } else if constexpr (traits::pgen::HasMatchFieldsInX3<pgen_t>) {
+          } else if constexpr (arch::traits::pgen::HasMatchFieldsInX3<pgen_t>) {
             auto match_fields = m_pgen.MatchFieldsInX3(time);
             call_match_fields<decltype(match_fields), in::x3>(domain.fields.em,
                                                               domain.mesh.flds_bc(),
@@ -837,7 +839,7 @@ namespace ntt {
       if (tags & BC::B) {
         comps.push_back(normal_b_comp);
       }
-      if constexpr (traits::pgen::HasFixFieldsConst<pgen_t>) {
+      if constexpr (arch::traits::pgen::HasFixFieldsConst<pgen_t>) {
         for (const auto& comp : comps) {
           auto       value     = ZERO;
           bool       shouldset = false;
@@ -1009,7 +1011,7 @@ namespace ntt {
       /**
        * atmosphere field boundaries
        */
-      if constexpr (traits::pgen::HasAtmFields<pgen_t>) {
+      if constexpr (arch::traits::pgen::HasAtmFields<pgen_t>) {
         const auto [sign, dim, xg_min, xg_max] = get_atm_extent(direction);
         const auto           dd                = static_cast<dim_t>(dim);
         boundaries_t<real_t> box;

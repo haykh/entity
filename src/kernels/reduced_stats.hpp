@@ -15,16 +15,17 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/numeric.h"
+
+#include "metrics/traits.h"
 
 namespace kernel {
   using namespace ntt;
 
   template <SimEngine::type S, class M, StatsID::type F, unsigned short I = 0>
-    requires traits::metric::HasD<M> &&
-             (traits::metric::HasTransform_i<M> || I == 0) &&
-             traits::metric::HasTransform<M> && traits::metric::HasSqrtDetH<M> &&
+    requires metric::traits::HasD<M> &&
+             (metric::traits::HasTransform_i<M> || I == 0) &&
+             metric::traits::HasTransform<M> && metric::traits::HasSqrtDetH<M> &&
              (I <= 3)
   class ReducedFields_kernel {
     static constexpr auto D = M::Dim;
@@ -400,9 +401,9 @@ namespace kernel {
   }
 
   template <SimEngine::type S, class M, StatsID::type P>
-    requires traits::metric::HasD<M> &&
-             ((S == SimEngine::SRPIC && traits::metric::HasTransformXYZ<M>) ||
-              S == SimEngine::GRPIC && traits::metric::HasTransform<M>) &&
+    requires metric::traits::HasD<M> &&
+             ((S == SimEngine::SRPIC && metric::traits::HasTransformXYZ<M>) ||
+              S == SimEngine::GRPIC && metric::traits::HasTransform<M>) &&
              ((P == StatsID::Rho) || (P == StatsID::Charge) ||
               (P == StatsID::N) || (P == StatsID::Npart) || (P == StatsID::T))
   class ReducedParticleMoments_kernel {

@@ -22,10 +22,11 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/comparators.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
+
+#include "metrics/traits.h"
 
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
@@ -34,7 +35,7 @@ namespace arch {
   using namespace ntt;
 
   template <SimEngine::type S, class M>
-    requires traits::metric::HasD<M>
+    requires metric::traits::HasD<M>
   struct EnergyDistribution {
     static constexpr auto D = M::Dim;
 

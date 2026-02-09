@@ -14,10 +14,11 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/comparators.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
+
+#include "metrics/traits.h"
 
 #include <vector>
 
@@ -36,9 +37,9 @@ namespace kernel {
   }
 
   template <SimEngine::type S, class M, FldsID::type F, unsigned short N>
-    requires traits::metric::HasD<M> && traits::metric::HasSqrtDetH<M> &&
-             ((S == SimEngine::SRPIC && traits::metric::HasTransformXYZ<M>) ||
-              (S == SimEngine::GRPIC && traits::metric::HasTransform<M>))
+    requires metric::traits::HasD<M> && metric::traits::HasSqrtDetH<M> &&
+             ((S == SimEngine::SRPIC && metric::traits::HasTransformXYZ<M>) ||
+              (S == SimEngine::GRPIC && metric::traits::HasTransform<M>))
   class ParticleMoments_kernel {
     static constexpr auto D = M::Dim;
 

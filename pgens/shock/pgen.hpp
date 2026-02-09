@@ -4,12 +4,12 @@
 #include "enums.h"
 #include "global.h"
 
-#include "arch/traits.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
 
 #include "archetypes/field_setter.h"
 #include "archetypes/problem_generator.h"
+#include "archetypes/traits.h"
 #include "archetypes/utils.h"
 #include "framework/domain/metadomain.h"
 
@@ -69,10 +69,14 @@ namespace user {
   template <SimEngine::type S, class M>
   struct PGen : public arch::ProblemGenerator<S, M> {
     // compatibility traits for the problem generator
-    static constexpr auto engines { traits::compatible_with<SimEngine::SRPIC>::value };
-    static constexpr auto metrics { traits::compatible_with<Metric::Minkowski>::value };
+    static constexpr auto engines {
+      arch::traits::pgen::compatible_with<SimEngine::SRPIC>::value
+    };
+    static constexpr auto metrics {
+      arch::traits::pgen::compatible_with<Metric::Minkowski>::value
+    };
     static constexpr auto dimensions {
-      traits::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value
+      arch::traits::pgen::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value
     };
 
     // for easy access to variables in the child class
@@ -117,8 +121,8 @@ namespace user {
       return init_flds;
     }
 
-    auto FixFieldsConst(const bc_in&,
-                        const em& comp) const -> std::pair<real_t, bool> {
+    auto FixFieldsConst(const bc_in&, const em& comp) const
+      -> std::pair<real_t, bool> {
       if (comp == em::ex1) {
         return { init_flds.ex1({ ZERO }), true };
       } else if (comp == em::ex2) {

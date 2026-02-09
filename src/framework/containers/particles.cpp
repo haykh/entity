@@ -24,6 +24,7 @@ namespace ntt {
                              ParticlePusherFlags particle_pusher_flags,
                              bool                use_tracking,
                              RadiativeDragFlags  radiative_drag_flags,
+                             EmissionTypeFlag    emission_policy_flag,
                              unsigned short      npld_r,
                              unsigned short      npld_i)
     : ParticleSpecies(index,
@@ -34,6 +35,7 @@ namespace ntt {
                       particle_pusher_flags,
                       use_tracking,
                       radiative_drag_flags,
+                      emission_policy_flag,
                       npld_r,
                       npld_i) {
 

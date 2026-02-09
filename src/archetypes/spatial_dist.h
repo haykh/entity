@@ -23,11 +23,13 @@
 #include "utils/error.h"
 #include "utils/numeric.h"
 
+#include "metrics/traits.h"
+
 namespace arch {
   using namespace ntt;
 
   template <SimEngine::type S, class M>
-    requires traits::metric::HasD<M>
+    requires metric::traits::HasD<M>
   struct SpatialDistribution {
     static constexpr auto D = M::Dim;
 

@@ -26,6 +26,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace fmt {
@@ -53,10 +54,8 @@ namespace fmt {
    * @param c Character to pad with
    * @param right Pad on the right
    */
-  inline auto pad(const std::string& str,
-                  std::size_t        n,
-                  char               c,
-                  bool               right = false) -> std::string {
+  inline auto pad(const std::string& str, std::size_t n, char c, bool right = false)
+    -> std::string {
     if (n <= str.size()) {
       return str;
     }
@@ -69,14 +68,27 @@ namespace fmt {
   /**
    * @brief formats a vector of arbitrary type: [a, b, c, ...]
    */
+  template <class P>
+  concept HasToString = requires(const P& params) {
+    { params.to_string() } -> std::convertible_to<std::string>;
+  };
+
+  // generic
+
+  template <typename T>
+  struct is_pair : std::false_type {};
+
+  template <typename T, typename U>
+  struct is_pair<std::pair<T, U>> : std::true_type {};
+
   template <typename T>
   auto formatVector(const std::vector<T>& vec) -> std::string {
     std::ostringstream oss;
     oss << "[";
     if (!vec.empty()) {
       if constexpr (traits::is_pair<T>::value) {
-        if constexpr (traits::params::HasToString<typename T::first_type> and
-                      traits::params::HasToString<typename T::second_type>) {
+        if constexpr (HasToString<typename T::first_type> and
+                      HasToString<typename T::second_type>) {
           oss << "{" << vec[0].first.to_string() << ", "
               << vec[0].second.to_string() << "}";
           for (size_t i = 1; i < vec.size(); ++i) {
@@ -115,8 +127,8 @@ namespace fmt {
    * @param delim Delimiter
    * @return Vector of strings
    */
-  inline auto splitString(const std::string& str,
-                          const std::string& delim) -> std::vector<std::string> {
+  inline auto splitString(const std::string& str, const std::string& delim)
+    -> std::vector<std::string> {
     std::regex regexz(delim);
     return { std::sregex_token_iterator(str.begin(), str.end(), regexz, -1),
              std::sregex_token_iterator() };

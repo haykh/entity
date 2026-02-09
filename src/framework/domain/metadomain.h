@@ -19,7 +19,8 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
+
+#include "metrics/traits.h"
 
 #include "framework/containers/species.h"
 #include "framework/domain/domain.h"
@@ -48,9 +49,9 @@
 namespace ntt {
 
   template <class M>
-  concept IsCompatibleWithMetadomain = traits::metric::HasD<M> &&
-                                       traits::metric::HasConvert<M> &&
-                                       traits::metric::HasTotVolume<M>;
+  concept IsCompatibleWithMetadomain = metric::traits::HasD<M> &&
+                                       metric::traits::HasConvert<M> &&
+                                       metric::traits::HasTotVolume<M>;
 
   template <SimEngine::type S, class M>
     requires IsCompatibleWithMetadomain<M>

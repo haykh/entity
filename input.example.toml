@@ -195,6 +195,59 @@
   #     @from: `scales.larmor0`
   #     @value: `1 / larmor0`
 
+[radiation]
+  [radiation.drag]
+    [radiation.drag.synchrotron]
+      # Radiation reaction limit gamma-factor for synchrotron
+      #   @type: float [> 0.0]
+      #   @default: 1.0
+      #   @note: [required] if one of the species has `radiative_drag = "synchrotron"`
+      gamma_rad = ""
+
+    [radiation.drag.compton]
+      # Radiation reaction limit gamma-factor for Compton drag
+      #   @type: float [> 0.0]
+      #   @default: 1.0
+      #   @note: [required] if one of the species has `radiative_drag = "compton"`
+      gamma_rad = ""
+
+  [radiation.emission]
+    [radiation.emission.synchrotron]
+      # Gamma-factor of a particle emitting synchrotron photons at energy `m0 c^2` in fiducial magnetic field `B0`
+      #   @type: float [> 1.0]
+      #   @default: 10.0
+      gamma_qed = ""
+      # Minimum photon energy for synchrotron emission (units of `m0 c^2`)
+      #   @type: float [> 0.0]
+      #   @default: 1e-4
+      photon_energy_min = ""
+      # Weights for the emitted synchrotron photons
+      #   @type: float [> 0.0]
+      #   @default: 1.0
+      photon_weight = ""
+      # Index of species for the emitted photon
+      #   @type: ushort [> 0]
+      #   @required
+      photon_species = ""
+
+    [radiation.emission.compton]
+      # Gamma-factor of a particle emitting inverse Compton photons at energy `m0 c^2` in fiducial magnetic field `B0`
+      #   @type: float [> 1.0]
+      #   @default: 10.0
+      gamma_qed = ""
+      # Minimum photon energy for inverse Compton emission (units of `m0 c^2`)
+      #   @type: float [> 0.0]
+      #   @default: 1e-4
+      photon_energy_min = ""
+      # Weights for the emitted inverse Compton photons
+      #   @type: float [> 0.0]
+      #   @default: 1.0
+      photon_weight = ""
+      # Index of species for the emitted photon
+      #   @type: ushort [> 0]
+      #   @required
+      photon_species = ""
+
 [algorithms]
   # Number of current smoothing passes
   #   @type: ushort [>= 0]
@@ -251,20 +304,6 @@
     #   @default: 0.0
     #   @note: When `larmor_max` == 0, the limit is disabled
     larmor_max = ""
-
-  [algorithms.synchrotron]
-    # Radiation reaction limit gamma-factor for synchrotron
-    #   @type: float [> 0.0]
-    #   @default: 1.0
-    #   @note: [required] if one of the species has `radiative_drag = "synchrotron"`
-    gamma_rad = ""
-
-  [algorithms.compton]
-    # Radiation reaction limit gamma-factor for Compton drag
-    #   @type: float [> 0.0]
-    #   @default: 1.0
-    #   @note: [required] if one of the species has `radiative_drag = "compton"`
-    gamma_rad = ""
 
   # Stencil coefficients for the field solver [notation as in Blinne+ (2018)]
   #   @note: Standard Yee solver: `delta_i = beta_ij = 0.0`
@@ -381,7 +420,15 @@
     #   @default: "None"
     #   @enum: "None", "Synchrotron", "Compton"
     #   @note: Can also be coma-separated combination, e.g., "Synchrotron,Compton"
+    #   @note: Relevant radiation.drag parameters should also be provided
     radiative_drag = ""
+    # Particle emission policy for the species
+    #   @type: string
+    #   @default: "None"
+    #   @enum: "None", "Synchrotron", "Compton", "StrongFieldPP"
+    #   @note: Only one emission mechanism allowed
+    #   @note: Appropriate radiation drag flag will be applied automatically (unless explicitly set to "None")
+    emission = ""
 
 # Parameters for specific problem generators and setups
 [setup]

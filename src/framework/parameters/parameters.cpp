@@ -11,6 +11,7 @@
 
 #include "framework/containers/species.h"
 #include "framework/parameters/algorithms.h"
+#include "framework/parameters/extra.h"
 #include "framework/parameters/grid.h"
 #include "framework/parameters/output.h"
 #include "framework/parameters/particles.h"
@@ -135,6 +136,7 @@ namespace ntt {
                                particle_species.pusher(),
                                particle_species.use_tracking(),
                                particle_species.radiative_drag_flags(),
+                               particle_species.emission_policy_flag(),
                                particle_species.npld_r(),
                                particle_species.npld_i());
       idxM1++;
@@ -197,13 +199,23 @@ namespace ntt {
     /* [algorithms] --------------------------------------------------------- */
     ntt::params::Algorithms     alg_params {};
     std::map<std::string, bool> alg_extra_flags = {
-      {          "gr",                engine_enum == SimEngine::GRPIC },
-      {         "gca",       isPromised("algorithms.gca.e_ovr_b_max") },
-      { "synchrotron", isPromised("algorithms.synchrotron.gamma_rad") },
-      {     "compton",     isPromised("algorithms.compton.gamma_rad") }
+      {  "gr",          engine_enum == SimEngine::GRPIC },
+      { "gca", isPromised("algorithms.gca.e_ovr_b_max") },
     };
     alg_params.read(get<real_t>("scales.dx0"), alg_extra_flags, toml_data);
     alg_params.setParams(alg_extra_flags, this);
+
+    /* extra physics ------------------------------------------------------ */
+    ntt::params::Extra          extra_params {};
+    std::map<std::string, bool> extra_extra_flags = {
+      {     "synchrotron_drag",isPromised("radiation.drag.synchrotron.gamma_rad")                               },
+      {         "compton_drag",          isPromised("radiation.drag.compton.gamma_rad") },
+      { "synchrotron_emission",
+       isPromised("radiation.emission.synchrotron.photon_species")                     },
+      {     "compton_emission", isPromised("radiation.emission.compton.photon_species") }
+    };
+    extra_params.read(extra_extra_flags, toml_data);
+    extra_params.setParams(extra_extra_flags, this);
 
     // @TODO: disabling stats for non-Cartesian
     if (coord_enum != Coord::Cart) {

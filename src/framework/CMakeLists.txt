@@ -9,6 +9,7 @@
 # * parameters/grid.cpp
 # * parameters/output.cpp
 # * parameters/algorithms.cpp
+# * parameters/extra.cpp
 # * simulation.cpp
 # * domain/grid.cpp
 # * domain/metadomain.cpp
@@ -46,6 +47,7 @@ set(SOURCES
     ${SRC_DIR}/parameters/grid.cpp
     ${SRC_DIR}/parameters/output.cpp
     ${SRC_DIR}/parameters/algorithms.cpp
+    ${SRC_DIR}/parameters/extra.cpp
     ${SRC_DIR}/domain/grid.cpp
     ${SRC_DIR}/domain/metadomain.cpp
     ${SRC_DIR}/domain/communications.cpp

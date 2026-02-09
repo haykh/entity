@@ -24,15 +24,16 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
+
+#include "metrics/traits.h"
 
 namespace kernel {
   using namespace ntt;
 
   template <class M, int N1, int N2>
-    requires traits::metric::HasD<M> && traits::metric::HasTransform<M> &&
+    requires metric::traits::HasD<M> && metric::traits::HasTransform<M> &&
              (N1 >= 3) && (N2 >= 3)
   class FieldsToPhys_kernel {
     static constexpr auto D = M::Dim;

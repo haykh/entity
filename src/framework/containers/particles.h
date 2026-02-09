@@ -86,6 +86,7 @@ namespace ntt {
      * @param particle_pusher_flags The pusher(s) assigned for the species
      * @param use_tracking Use particle tracking for the species
      * @param radiative_drag_flags The radiative drag mechanism(s) assigned for the species
+     * @param emission_policy_flag The emission policy assigned for the species
      * @param npld_r The number of real-valued payloads for the species
      * @param npld_i The number of integer-valued payloads for the species
      */
@@ -97,8 +98,9 @@ namespace ntt {
               ParticlePusherFlags particle_pusher_flags,
               bool                use_tracking,
               RadiativeDragFlags  radiative_drag_flags,
-              unsigned short      npld_r = 0,
-              unsigned short      npld_i = 0);
+              EmissionTypeFlag    emission_policy_flag,
+              unsigned short      npld_r,
+              unsigned short      npld_i);
 
     /**
      * @brief Constructor for the particle container
@@ -114,6 +116,7 @@ namespace ntt {
                   spec.pusher(),
                   spec.use_tracking(),
                   spec.radiative_drag_flags(),
+                  spec.emission_policy_flag(),
                   spec.npld_r(),
                   spec.npld_i()) {}
 

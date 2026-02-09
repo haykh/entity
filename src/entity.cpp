@@ -3,19 +3,39 @@
 #include "arch/traits.h"
 #include "utils/error.h"
 
-#include "engines/engine_traits.h"
+#include "archetypes/traits.h"
 #include "framework/simulation.h"
 #include "framework/specialization_registry.h"
 
+#include "engines/grpic.hpp"
+#include "engines/srpic.hpp"
 #include "pgen.hpp"
- 
+
 #include <type_traits>
+
+namespace ntt {
+  template <SimEngine::type S>
+  struct EngineSelector;
+
+  template <>
+  struct EngineSelector<SimEngine::SRPIC> {
+    template <class M>
+    using type = SRPICEngine<M>;
+  };
+
+  template <>
+  struct EngineSelector<SimEngine::GRPIC> {
+    template <class M>
+    using type = GRPICEngine<M>;
+  };
+} // namespace ntt
 
 template <ntt::SimEngine::type S, template <Dimension> class M, Dimension D>
 static constexpr bool should_compile {
-  traits::check_compatibility<S>::value(user::PGen<S, M<D>>::engines) &&
-  traits::check_compatibility<M<D>::MetricType>::value(user::PGen<S, M<D>>::metrics) &&
-  traits::check_compatibility<D>::value(user::PGen<S, M<D>>::dimensions)
+  arch::traits::pgen::check_compatibility<S>::value(user::PGen<S, M<D>>::engines) &&
+  arch::traits::pgen::check_compatibility<M<D>::MetricType>::value(
+    user::PGen<S, M<D>>::metrics) &&
+  arch::traits::pgen::check_compatibility<D>::value(user::PGen<S, M<D>>::dimensions)
 };
 
 template <ntt::SimEngine::type S, template <Dimension> class M, Dimension D>
@@ -26,7 +46,7 @@ void dispatch_engine(ntt::Simulation& sim) {
     sim.run<ntt::EngineSelector<S>::template type, M, D>();
   } else {
     static_assert(
-      traits::always_false<std::integral_constant<SimEngine::type, S>>::value,
+      ::traits::always_false<std::integral_constant<SimEngine::type, S>>::value,
       "Unsupported engine");
   }
 }

@@ -124,22 +124,6 @@ namespace ntt {
                                        "larmor_max",
                                        ZERO);
       }
-
-      if (extra.at("synchrotron")) {
-        synchrotron_gamma_rad = toml::find_or(toml_data,
-                                              "algorithms",
-                                              "synchrotron",
-                                              "gamma_rad",
-                                              defaults::synchrotron::gamma_rad);
-      }
-
-      if (extra.at("compton")) {
-        compton_gamma_rad = toml::find_or(toml_data,
-                                          "algorithms",
-                                          "compton",
-                                          "gamma_rad",
-                                          defaults::compton::gamma_rad);
-      }
     }
 
     void Algorithms::setParams(const std::map<std::string, bool>& extra,
@@ -166,14 +150,6 @@ namespace ntt {
       if (extra.at("gca")) {
         params->set("algorithms.gca.e_ovr_b_max", gca_e_ovr_b_max);
         params->set("algorithms.gca.larmor_max", gca_larmor_max);
-      }
-
-      if (extra.at("synchrotron")) {
-        params->set("algorithms.synchrotron.gamma_rad", synchrotron_gamma_rad);
-      }
-
-      if (extra.at("compton")) {
-        params->set("algorithms.compton.gamma_rad", compton_gamma_rad);
       }
     }
 

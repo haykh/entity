@@ -5,11 +5,11 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
 
 #include "archetypes/problem_generator.h"
+#include "archetypes/traits.h"
 #include "archetypes/utils.h"
 #include "framework/domain/domain.h"
 #include "framework/domain/metadomain.h"
@@ -54,18 +54,20 @@ namespace user {
   struct PGen : public arch::ProblemGenerator<S, M> {
 
     // compatibility traits for the problem generator
-    static constexpr auto engines = traits::compatible_with<SimEngine::SRPIC>::value;
-    static constexpr auto metrics = traits::compatible_with<Metric::Minkowski>::value;
+    static constexpr auto engines =
+      arch::traits::pgen::compatible_with<SimEngine::SRPIC>::value;
+    static constexpr auto metrics =
+      arch::traits::pgen::compatible_with<Metric::Minkowski>::value;
     static constexpr auto dimensions =
-      traits::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value;
+      arch::traits::pgen::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value;
 
     // for easy access to variables in the child class
     using arch::ProblemGenerator<S, M>::D;
     using arch::ProblemGenerator<S, M>::C;
     using arch::ProblemGenerator<S, M>::params;
 
-    prmvec_t drifts_in_x, drifts_in_y, drifts_in_z;
-    prmvec_t densities, temperatures;
+    prmvec_t      drifts_in_x, drifts_in_y, drifts_in_z;
+    prmvec_t      densities, temperatures;
     // initial magnetic field
     real_t        Btheta, Bphi, Bmag;
     InitFields<D> init_flds;

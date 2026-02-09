@@ -4,10 +4,10 @@
 #include "enums.h"
 #include "global.h"
 
-#include "arch/traits.h"
 #include "utils/formatting.h"
 
 #include "archetypes/problem_generator.h"
+#include "archetypes/traits.h"
 #include "framework/domain/metadomain.h"
 
 #include <plog/Log.h>
@@ -19,18 +19,18 @@ namespace user {
   struct PGen : public arch::ProblemGenerator<S, M> {
     // compatibility traits for the problem generator
     static constexpr auto engines {
-      traits::compatible_with<SimEngine::SRPIC, SimEngine::GRPIC>::value
+      arch::traits::pgen::compatible_with<SimEngine::SRPIC, SimEngine::GRPIC>::value
     };
     static constexpr auto metrics {
-      traits::compatible_with<Metric::Minkowski,
-                              Metric::Spherical,
-                              Metric::QSpherical,
-                              Metric::Kerr_Schild,
-                              Metric::QKerr_Schild,
-                              Metric::Kerr_Schild_0>::value
+      arch::traits::pgen::compatible_with<Metric::Minkowski,
+                                          Metric::Spherical,
+                                          Metric::QSpherical,
+                                          Metric::Kerr_Schild,
+                                          Metric::QKerr_Schild,
+                                          Metric::Kerr_Schild_0>::value
     };
     static constexpr auto dimensions {
-      traits::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value
+      arch::traits::pgen::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value
     };
 
     // for easy access to variables in the child class

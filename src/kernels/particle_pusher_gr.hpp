@@ -18,9 +18,10 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
+
+#include "metrics/traits.h"
 
 #if defined(MPI_ENABLED)
   #include "arch/mpi_tags.h"
@@ -30,7 +31,9 @@
 /* Local macros                                                               */
 /* -------------------------------------------------------------------------- */
 #define from_Xi_to_i(XI, I)                                                    \
-  { I = static_cast<int>((XI + 1)) - 1; }
+  {                                                                            \
+    I = static_cast<int>((XI + 1)) - 1;                                        \
+  }
 
 #define from_Xi_to_i_di(XI, I, DI)                                             \
   {                                                                            \
@@ -58,12 +61,12 @@ namespace kernel::gr {
   struct Massless_t {};
 
   template <class M>
-  concept IsCompatibleWithPusherGR = traits::metric::HasD<M> &&
-                                     traits::metric::HasTransform<M> &&
-                                     traits::metric::HasHij<M> &&
-                                     traits::metric::HasAlpha<M> &&
-                                     traits::metric::HasBeta1<M> &&
-                                     traits::metric::HasMetricDerivatives<M>;
+  concept IsCompatibleWithPusherGR = metric::traits::HasD<M> &&
+                                     metric::traits::HasTransform<M> &&
+                                     metric::traits::HasHij<M> &&
+                                     metric::traits::HasAlpha<M> &&
+                                     metric::traits::HasBeta1<M> &&
+                                     metric::traits::HasMetricDerivatives<M>;
 
   /**
    * @brief Algorithm for the Particle pusher

@@ -16,9 +16,10 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
-#include "arch/traits.h"
 #include "utils/error.h"
 #include "utils/numeric.h"
+
+#include "metrics/traits.h"
 
 namespace kernel::sr {
   using namespace ntt;
@@ -28,8 +29,8 @@ namespace kernel::sr {
    * space (diagonal metric)
    */
   template <class M>
-    requires traits::metric::HasD<M> && traits::metric::HasH_ij<M> &&
-             traits::metric::HasSqrtDetH<M>
+    requires metric::traits::HasD<M> && metric::traits::HasH_ij<M> &&
+             metric::traits::HasSqrtDetH<M>
   class Faraday_kernel {
     static constexpr auto D = M::Dim;
 
