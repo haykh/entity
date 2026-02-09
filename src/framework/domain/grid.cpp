@@ -85,8 +85,8 @@ namespace ntt {
   }
 
   template <Dimension D>
-  auto Grid<D>::rangeCellsOnHost(
-    const box_region_t<D>& region) const -> range_h_t<D> {
+  auto Grid<D>::rangeCellsOnHost(const box_region_t<D>& region) const
+    -> range_h_t<D> {
     tuple_t<ncells_t, D> imin, imax;
     for (auto i { 0u }; i < D; i++) {
       switch (region[i]) {
@@ -162,8 +162,8 @@ namespace ntt {
   }
 
   template <Dimension D>
-  auto Grid<D>::rangeCells(
-    const tuple_t<list_t<int, 2>, D>& ranges) const -> range_t<D> {
+  auto Grid<D>::rangeCells(const tuple_t<list_t<int, 2>, D>& ranges) const
+    -> range_t<D> {
     tuple_t<ncells_t, D> imin, imax;
     for (auto i { 0u }; i < D; i++) {
       raise::ErrorIf((ranges[i][0] < -(int)N_GHOSTS) ||
@@ -175,6 +175,54 @@ namespace ntt {
       raise::ErrorIf(imin[i] >= imax[i], "Invalid cell layer picked", HERE);
     }
     return CreateRangePolicy<D>(imin, imax);
+  }
+
+  template <>
+  auto Grid<Dim::_1D>::flds_bc() const -> boundaries_t<FldsBC> {
+    return {
+      { flds_bc_in({ -1 }), flds_bc_in({ 1 }) }
+    };
+  }
+
+  template <>
+  auto Grid<Dim::_2D>::flds_bc() const -> boundaries_t<FldsBC> {
+    return {
+      { flds_bc_in({ -1, 0 }), flds_bc_in({ 1, 0 }) },
+      { flds_bc_in({ 0, -1 }), flds_bc_in({ 0, 1 }) }
+    };
+  }
+
+  template <>
+  auto Grid<Dim::_3D>::flds_bc() const -> boundaries_t<FldsBC> {
+    return {
+      { flds_bc_in({ -1, 0, 0 }), flds_bc_in({ 1, 0, 0 }) },
+      { flds_bc_in({ 0, -1, 0 }), flds_bc_in({ 0, 1, 0 }) },
+      { flds_bc_in({ 0, 0, -1 }), flds_bc_in({ 0, 0, 1 }) }
+    };
+  }
+
+  template <>
+  auto Grid<Dim::_1D>::prtl_bc() const -> boundaries_t<PrtlBC> {
+    return {
+      { prtl_bc_in({ -1 }), prtl_bc_in({ 1 }) }
+    };
+  }
+
+  template <>
+  auto Grid<Dim::_2D>::prtl_bc() const -> boundaries_t<PrtlBC> {
+    return {
+      { prtl_bc_in({ -1, 0 }), prtl_bc_in({ 1, 0 }) },
+      { prtl_bc_in({ 0, -1 }), prtl_bc_in({ 0, 1 }) }
+    };
+  }
+
+  template <>
+  auto Grid<Dim::_3D>::prtl_bc() const -> boundaries_t<PrtlBC> {
+    return {
+      { prtl_bc_in({ -1, 0, 0 }), prtl_bc_in({ 1, 0, 0 }) },
+      { prtl_bc_in({ 0, -1, 0 }), prtl_bc_in({ 0, 1, 0 }) },
+      { prtl_bc_in({ 0, 0, -1 }), prtl_bc_in({ 0, 0, 1 }) }
+    };
   }
 
   template struct Grid<Dim::_1D>;

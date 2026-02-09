@@ -8,7 +8,7 @@
 #include "framework/specialization_registry.h"
 
 #include "engines/grpic.hpp"
-#include "engines/srpic.hpp"
+#include "engines/srpic/srpic.hpp"
 #include "pgen.hpp"
 
 #include <type_traits>

@@ -26,10 +26,10 @@ namespace ntt {
   namespace params {
 
     template <typename M>
-    auto get_dx0_V0(
-      const std::vector<ncells_t>& resolution,
-      const boundaries_t<real_t>&  extent,
-      const std::map<std::string, real_t>& params) -> std::pair<real_t, real_t> {
+    auto get_dx0_V0(const std::vector<ncells_t>&         resolution,
+                    const boundaries_t<real_t>&          extent,
+                    const std::map<std::string, real_t>& params)
+      -> std::pair<real_t, real_t> {
       const auto      metric = M(resolution, extent, params);
       const auto      dx0    = metric.dxMin();
       coord_t<M::Dim> x_corner { ZERO };
@@ -375,7 +375,7 @@ namespace ntt {
                                         "simulation",
                                         "domain",
                                         "number",
-                                        default_ndomains);
+                                        (unsigned int)default_ndomains);
 
       domain_decomposition = toml::find_or<std::vector<int>>(
         toml_data,

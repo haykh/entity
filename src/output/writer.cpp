@@ -26,11 +26,9 @@ namespace out {
 
   void Writer::init(adios2::ADIOS*     ptr_adios,
                     const std::string& engine,
-                    const std::string& title,
-                    bool               use_separate_files) {
-    m_separate_files = use_separate_files;
-    m_engine         = fmt::toLower(engine);
-    p_adios          = ptr_adios;
+                    const std::string& title) {
+    m_engine = fmt::toLower(engine);
+    p_adios  = ptr_adios;
 
     raise::ErrorIf(p_adios == nullptr, "ADIOS pointer is null", HERE);
 
@@ -48,9 +46,8 @@ namespace out {
     m_trackers.insert({ type, tools::Tracker(type, interval, interval_time) });
   }
 
-  auto Writer::shouldWrite(const std::string& type,
-                           timestep_t         step,
-                           simtime_t          time) -> bool {
+  auto Writer::shouldWrite(const std::string& type, timestep_t step, simtime_t time)
+    -> bool {
     if (m_trackers.find(type) != m_trackers.end()) {
       return m_trackers.at(type).shouldWrite(step, time);
     } else {
@@ -414,41 +411,35 @@ namespace out {
       path_t filename;
 
       const std::string ext = (m_engine == "hdf5") ? "h5" : "bp";
-      if (m_separate_files) {
-        std::string mode_str;
-        if (write_mode == WriteMode::Fields) {
-          mode_str = "fields";
-        } else if (write_mode == WriteMode::Particles) {
-          mode_str = "particles";
-        } else if (write_mode == WriteMode::Spectra) {
-          mode_str = "spectra";
-        } else {
-          raise::Fatal("Unknown write mode", HERE);
-        }
-        CallOnce(
-          [](auto&& main_path, auto&& mode_path) {
-            const path_t main { main_path };
-            const path_t mode { mode_path };
-            if (!std::filesystem::exists(main_path)) {
-              std::filesystem::create_directory(main_path);
-            }
-            if (!std::filesystem::exists(main_path / mode_path)) {
-              std::filesystem::create_directory(main_path / mode_path);
-            }
-          },
-          m_root,
-          mode_str);
-#if defined(MPI_ENABLED)
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
-        filename = m_root / path_t(mode_str) /
-                   fmt::format("%s.%08lu.%s", mode_str.c_str(), tstep, ext.c_str());
-        m_mode = adios2::Mode::Write;
+      std::string       mode_str;
+      if (write_mode == WriteMode::Fields) {
+        mode_str = "fields";
+      } else if (write_mode == WriteMode::Particles) {
+        mode_str = "particles";
+      } else if (write_mode == WriteMode::Spectra) {
+        mode_str = "spectra";
       } else {
-        filename = fmt::format("%s.%s", m_root.c_str(), ext.c_str());
-        m_mode   = std::filesystem::exists(filename) ? adios2::Mode::Append
-                                                     : adios2::Mode::Write;
+        raise::Fatal("Unknown write mode", HERE);
       }
+      CallOnce(
+        [](auto&& main_path, auto&& mode_path) {
+          const path_t main { main_path };
+          const path_t mode { mode_path };
+          if (!std::filesystem::exists(main_path)) {
+            std::filesystem::create_directory(main_path);
+          }
+          if (!std::filesystem::exists(main_path / mode_path)) {
+            std::filesystem::create_directory(main_path / mode_path);
+          }
+        },
+        m_root,
+        mode_str);
+#if defined(MPI_ENABLED)
+      MPI_Barrier(MPI_COMM_WORLD);
+#endif
+      filename = m_root / path_t(mode_str) /
+                 fmt::format("%s.%08lu.%s", mode_str.c_str(), tstep, ext.c_str());
+      m_mode   = adios2::Mode::Write;
       m_writer = m_io.Open(filename, m_mode);
       m_writer.BeginStep();
       m_writer.Put(m_io.InquireVariable<timestep_t>("Step"), &tstep);

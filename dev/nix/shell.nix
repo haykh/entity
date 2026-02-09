@@ -29,8 +29,8 @@ let
         CC = "gcc";
       };
       HIP = {
-        CXX = "hipcc";
-        CC = "hipcc";
+        CXX = "clang++";
+        CC = "clang";
       };
       CUDA = { };
     };

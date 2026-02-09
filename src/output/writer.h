@@ -35,8 +35,6 @@ namespace out {
     adios2::Engine m_writer;
     adios2::Mode   m_mode { adios2::Mode::Write };
 
-    bool m_separate_files;
-
     // global shape of the fields array to output
     std::vector<ncells_t> m_flds_g_shape;
     // local corner of the fields array to output
@@ -74,7 +72,7 @@ namespace out {
 
     Writer(Writer&&) = default;
 
-    void init(adios2::ADIOS*, const std::string&, const std::string&, bool);
+    void init(adios2::ADIOS*, const std::string&, const std::string&);
 
     void setMode(adios2::Mode);
 

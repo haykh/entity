@@ -47,9 +47,6 @@ set(pgen
     ${default_pgen}
     CACHE STRING "Problem generator")
 
-set(gui
-    ${default_gui}
-    CACHE BOOL "Use GUI [nttiny]")
 set(output
     ${default_output}
     CACHE BOOL "Enable output")
@@ -70,7 +67,7 @@ if(${DEBUG} STREQUAL "OFF")
   set(CMAKE_BUILD_TYPE
       Release
       CACHE STRING "CMake build type")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -O3")
 else()
   set(CMAKE_BUILD_TYPE
       Debug
@@ -170,21 +167,29 @@ endif()
 
 link_libraries(${DEPENDENCIES})
 
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+add_subdirectory(${SRC_DIR}/global ${CMAKE_CURRENT_BINARY_DIR}/global)
+add_subdirectory(${SRC_DIR}/metrics ${CMAKE_CURRENT_BINARY_DIR}/metrics)
+add_subdirectory(${SRC_DIR}/kernels ${CMAKE_CURRENT_BINARY_DIR}/kernels)
+add_subdirectory(${SRC_DIR}/archetypes ${CMAKE_CURRENT_BINARY_DIR}/archetypes)
+add_subdirectory(${SRC_DIR}/framework ${CMAKE_CURRENT_BINARY_DIR}/framework)
+add_subdirectory(${SRC_DIR}/output ${CMAKE_CURRENT_BINARY_DIR}/output)
+
+# ------------------------------- Main source ------------------------------ #
+if(NOT ${pgen} STREQUAL ${default_pgen})
+  set_problem_generator(${pgen})
+  add_subdirectory(${SRC_DIR}/engines ${CMAKE_CURRENT_BINARY_DIR}/engines)
+  add_subdirectory(${SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR}/src)
+endif()
+
 if(TESTS)
   # ---------------------------------- Tests --------------------------------- #
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests.cmake)
-elseif(BENCHMARK)
+endif()
+
+if(BENCHMARK)
   # ------------------------------ Benchmark --------------------------------- #
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/benchmark.cmake)
-else()
-  # ----------------------------------- GUI ---------------------------------- #
-  if(${gui})
-    find_or_fetch_dependency(nttiny FALSE QUIET)
-  endif()
-
-  # ------------------------------- Main source ------------------------------ #
-  set_problem_generator(${pgen})
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src src)
 endif()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/report.cmake)

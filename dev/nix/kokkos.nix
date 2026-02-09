@@ -7,26 +7,26 @@
 
 let
   name = "kokkos";
-  pversion = "5.0.0";
+  pversion = "5.0.1";
   compilerPkgs = {
     "HIP" = with pkgs.rocmPackages; [
-      llvm.llvm
+      clang
       rocm-core
       clr
       rocthrust
       rocprim
       rocminfo
       rocm-smi
-      pkgs.llvmPackages_19.clang-tools
+      pkgs.clang-tools
     ];
     "CUDA" = with pkgs.cudaPackages; [
-      llvmPackages_19.clang-tools
+      pkgs.clang-tools
       cudatoolkit
       cuda_cudart
       pkgs.gcc13
     ];
     "NONE" = [
-      pkgs.llvmPackages_19.clang-tools
+      pkgs.clang-tools
       pkgs.gcc13
     ];
   };
@@ -41,7 +41,7 @@ let
       "-D Kokkos_ENABLE_HIP=ON"
       "-D Kokkos_ARCH_${getArch { }}=ON"
       "-D GPU_TARGETS=${builtins.replaceStrings [ "amd_" ] [ "" ] (pkgs.lib.toLower (getArch { }))}"
-      "-D CMAKE_CXX_COMPILER=hipcc"
+      "-D CMAKE_CXX_COMPILER=clang++"
     ];
     "CUDA" = [
       "-D Kokkos_ENABLE_CUDA=ON"
@@ -57,7 +57,7 @@ pkgs.stdenv.mkDerivation rec {
   src = pkgs.fetchgit {
     url = "https://github.com/kokkos/kokkos/";
     rev = "${pversion}";
-    sha256 = "sha256-C4DarqnEcdF3+19TPqcM0A9bcQSkKTJkB8b7OkzC7T8=";
+    sha256 = "sha256-ChpwGBwE7sNovjdAM/iCeOqqwGufKxAh5vQ3qK6aFBU=";
   };
 
   nativeBuildInputs = with pkgs; [

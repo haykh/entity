@@ -66,7 +66,7 @@ namespace ntt {
   };
 
   template <class M>
-    requires IsCompatibleWithEngine<SimEngine::GRPIC, M>
+    requires traits::engine::IsCompatibleWithGRPICEngine<M, user::PGen>
   class GRPICEngine : public Engine<SimEngine::GRPIC, M> {
     using base_t   = Engine<SimEngine::GRPIC, M>;
     using pgen_t   = user::PGen<SimEngine::GRPIC, M>;
@@ -637,28 +637,30 @@ namespace ntt {
       }
       if (dim == in::x1) {
         if (g != gr_bc::curr) {
-          Kokkos::parallel_for(
-            "MatchBoundaries",
-            CreateRangePolicy<M::Dim>(range_min, range_max),
-            kernel::bc::MatchBoundaries_kernel<S, decltype(m_pgen.init_flds), M, in::x1>(
-              domain.fields.em,
-              m_pgen.init_flds,
-              domain.mesh.metric,
-              xg_edge,
-              ds,
-              tags,
-              domain.mesh.flds_bc()));
-          Kokkos::parallel_for(
-            "MatchBoundaries",
-            CreateRangePolicy<M::Dim>(range_min, range_max),
-            kernel::bc::MatchBoundaries_kernel<S, decltype(m_pgen.init_flds), M, in::x1>(
-              domain.fields.em0,
-              m_pgen.init_flds,
-              domain.mesh.metric,
-              xg_edge,
-              ds,
-              tags,
-              domain.mesh.flds_bc()));
+          if constexpr (arch::traits::pgen::HasInitFlds<pgen_t>) {
+            Kokkos::parallel_for(
+              "MatchBoundaries",
+              CreateRangePolicy<M::Dim>(range_min, range_max),
+              kernel::bc::MatchBoundaries_kernel<S, decltype(m_pgen.init_flds), M, in::x1>(
+                domain.fields.em,
+                m_pgen.init_flds,
+                domain.mesh.metric,
+                xg_edge,
+                ds,
+                tags,
+                domain.mesh.flds_bc()));
+            Kokkos::parallel_for(
+              "MatchBoundaries",
+              CreateRangePolicy<M::Dim>(range_min, range_max),
+              kernel::bc::MatchBoundaries_kernel<S, decltype(m_pgen.init_flds), M, in::x1>(
+                domain.fields.em0,
+                m_pgen.init_flds,
+                domain.mesh.metric,
+                xg_edge,
+                ds,
+                tags,
+                domain.mesh.flds_bc()));
+          }
         } else {
           Kokkos::parallel_for(
             "AbsorbCurrents",

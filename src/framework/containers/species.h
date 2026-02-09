@@ -13,6 +13,9 @@
 
 #include "enums.h"
 
+#include "utils/formatting.h"
+#include "utils/reporter.h"
+
 #include <string>
 
 namespace ntt {
@@ -171,6 +174,31 @@ namespace ntt {
     [[nodiscard]]
     auto npld_i() const -> unsigned short {
       return m_npld_i;
+    }
+
+    /* reporter -------------------------------------------------------------- */
+    auto Report() const -> std::string {
+      std::string report = "";
+      reporter::AddSubcategory(report,
+                               4,
+                               fmt::format("Species #%d", index()).c_str());
+      reporter::AddParam(report, 6, "Label", "%s", label().c_str());
+      reporter::AddParam(report, 6, "Mass", "%.1f", mass());
+      reporter::AddParam(report, 6, "Charge", "%.1f", charge());
+      reporter::AddParam(report, 6, "Max #", "%d [per domain]", maxnpart());
+      reporter::AddParam(report,
+                         6,
+                         "Pusher",
+                         "%s",
+                         ParticlePusher::to_string(pusher()).c_str());
+      reporter::AddParam(report,
+                         6,
+                         "Radiative drag",
+                         "%s",
+                         RadiativeDrag::to_string(radiative_drag_flags()).c_str());
+      reporter::AddParam(report, 6, "# of real-value payloads", "%d", npld_r());
+      reporter::AddParam(report, 6, "# of integer-value payloads", "%d", npld_i());
+      return report;
     }
   };
 } // namespace ntt

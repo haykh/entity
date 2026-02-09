@@ -33,11 +33,13 @@ namespace ntt {
       real_t  synchrotron_energy_min;
       real_t  synchrotron_gamma_qed;
       real_t  synchrotron_photon_weight;
+      real_t  synchrotron_photon_sampling_rate;
       spidx_t synchrotron_photon_species;
 
       real_t  compton_energy_min;
       real_t  compton_gamma_qed;
       real_t  compton_photon_weight;
+      real_t  compton_photon_sampling_rate;
       spidx_t compton_photon_species;
 
       void read(const std::map<std::string, bool>&, const toml::value&);

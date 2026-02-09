@@ -54,7 +54,7 @@ namespace ntt {
     };
 
     struct Grid {
-      int              number_of_domains;
+      unsigned int     number_of_domains;
       std::vector<int> domain_decomposition;
 
       std::vector<ncells_t> resolution;
@@ -75,12 +75,12 @@ namespace ntt {
       void setParams(SimulationParams*) const;
     };
 
-    auto GetBoundaryConditions(
-      SimulationParams* params,
-      const SimEngine&,
-      Dimension,
-      const Coord&,
-      const toml::value&) -> std::tuple<boundaries_t<FldsBC>, boundaries_t<PrtlBC>>;
+    auto GetBoundaryConditions(SimulationParams* params,
+                               const SimEngine&,
+                               Dimension,
+                               const Coord&,
+                               const toml::value&)
+      -> std::tuple<boundaries_t<FldsBC>, boundaries_t<PrtlBC>>;
 
   } // namespace params
 } // namespace ntt

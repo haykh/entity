@@ -11,6 +11,7 @@
 # * utils/timer.cpp
 # * utils/diag.cpp
 # * utils/progressbar.cpp
+# * utils/reporter.cpp
 #
 # @includes:
 #
@@ -25,9 +26,13 @@
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(SOURCES
-    ${SRC_DIR}/global.cpp ${SRC_DIR}/arch/kokkos_aliases.cpp
-    ${SRC_DIR}/utils/cargs.cpp ${SRC_DIR}/utils/timer.cpp
-    ${SRC_DIR}/utils/diag.cpp ${SRC_DIR}/utils/progressbar.cpp)
+    ${SRC_DIR}/global.cpp
+    ${SRC_DIR}/arch/kokkos_aliases.cpp
+    ${SRC_DIR}/utils/cargs.cpp
+    ${SRC_DIR}/utils/timer.cpp
+    ${SRC_DIR}/utils/diag.cpp
+    ${SRC_DIR}/utils/progressbar.cpp
+    ${SRC_DIR}/utils/reporter.cpp)
 if(${output})
   list(APPEND SOURCES ${SRC_DIR}/utils/param_container.cpp)
 endif()

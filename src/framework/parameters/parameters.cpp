@@ -265,7 +265,51 @@ namespace ntt {
             }
             set("setup." + key, vec);
           } else if (val_arr[0].is_array()) {
-            raise::Error("only 1D arrays allowed in [setup]", HERE);
+            if (val_arr[0].as_array().size() == 0) {
+              raise::Error("empty inner arrays not allowed in [setup]", HERE);
+            } else if (val_arr[0][0].is_integer()) {
+              std::vector<std::vector<int>> vec;
+              for (const auto& v1 : val_arr) {
+                std::vector<int> inner_vec;
+                for (const auto& v2 : v1.as_array()) {
+                  inner_vec.push_back(v2.as_integer());
+                }
+                vec.push_back(inner_vec);
+              }
+              set("setup." + key, vec);
+            } else if (val_arr[0][0].is_floating()) {
+              std::vector<std::vector<real_t>> vec;
+              for (const auto& v1 : val_arr) {
+                std::vector<real_t> inner_vec;
+                for (const auto& v2 : v1.as_array()) {
+                  inner_vec.push_back(v2.as_floating());
+                }
+                vec.push_back(inner_vec);
+              }
+              set("setup." + key, vec);
+            } else if (val_arr[0][0].is_boolean()) {
+              std::vector<std::vector<bool>> vec;
+              for (const auto& v : val_arr) {
+                std::vector<bool> inner_vec;
+                for (const auto& v2 : v.as_array()) {
+                  inner_vec.push_back(v2.as_boolean());
+                }
+                vec.push_back(inner_vec);
+              }
+              set("setup." + key, vec);
+            } else if (val_arr[0][0].is_string()) {
+              std::vector<std::vector<std::string>> vec;
+              for (const auto& v : val_arr) {
+                std::vector<std::string> inner_vec;
+                for (const auto& v2 : v.as_array()) {
+                  inner_vec.push_back(v2.as_string());
+                }
+                vec.push_back(inner_vec);
+              }
+              set("setup." + key, vec);
+            } else if (val_arr[0][0].is_array()) {
+              raise::Error("up to 2D arrays allowed in [setup]", HERE);
+            }
           } else {
             raise::Error("invalid setup variable type", HERE);
           }
@@ -292,9 +336,8 @@ namespace ntt {
     CallOnce([&]() {
       std::ofstream metadata;
       metadata.open(path);
-      metadata << "[metadata]\n"
-               << "  time = " << time << "\n\n"
-               << data() << std::endl;
+      metadata << fmt::format("[metadata]\n  time = %f\n\n", time) << data()
+               << std::endl;
       metadata.close();
     });
   }
