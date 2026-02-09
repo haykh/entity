@@ -4,6 +4,7 @@
 #include "global.h"
 
 #include "arch/kokkos_aliases.h"
+#include "utils/log.h"
 
 #include "framework/containers/species.h"
 
@@ -38,35 +39,54 @@ namespace ntt {
                       emission_policy_flag,
                       npld_r,
                       npld_i) {
+    logger::Checkpoint("----- allocating particles #" + std::to_string(index),
+                       HERE);
 
     if constexpr (D == Dim::_1D or D == Dim::_2D or D == Dim::_3D) {
-      i1       = array_t<int*> { label + "_i1", maxnpart };
-      dx1      = array_t<prtldx_t*> { label + "_dx1", maxnpart };
-      i1_prev  = array_t<int*> { label + "_i1_prev", maxnpart };
+      i1 = array_t<int*> { label + "_i1", maxnpart };
+      logger::Checkpoint("i1 allocated", HERE);
+      dx1 = array_t<prtldx_t*> { label + "_dx1", maxnpart };
+      logger::Checkpoint("dx1 allocated", HERE);
+      i1_prev = array_t<int*> { label + "_i1_prev", maxnpart };
+      logger::Checkpoint("i1_prev allocated", HERE);
       dx1_prev = array_t<prtldx_t*> { label + "_dx1_prev", maxnpart };
+      logger::Checkpoint("i1_prev allocated", HERE);
     }
 
     if constexpr (D == Dim::_2D or D == Dim::_3D) {
-      i2       = array_t<int*> { label + "_i2", maxnpart };
-      dx2      = array_t<prtldx_t*> { label + "_dx2", maxnpart };
-      i2_prev  = array_t<int*> { label + "_i2_prev", maxnpart };
+      i2 = array_t<int*> { label + "_i2", maxnpart };
+      logger::Checkpoint("i2 allocated", HERE);
+      dx2 = array_t<prtldx_t*> { label + "_dx2", maxnpart };
+      logger::Checkpoint("dx2 allocated", HERE);
+      i2_prev = array_t<int*> { label + "_i2_prev", maxnpart };
+      logger::Checkpoint("i2_prev allocated", HERE);
       dx2_prev = array_t<prtldx_t*> { label + "_dx2_prev", maxnpart };
+      logger::Checkpoint("dx2_prev allocated", HERE);
     }
 
     if constexpr (D == Dim::_3D) {
-      i3       = array_t<int*> { label + "_i3", maxnpart };
-      dx3      = array_t<prtldx_t*> { label + "_dx3", maxnpart };
-      i3_prev  = array_t<int*> { label + "_i3_prev", maxnpart };
+      i3 = array_t<int*> { label + "_i3", maxnpart };
+      logger::Checkpoint("i3 allocated", HERE);
+      dx3 = array_t<prtldx_t*> { label + "_dx3", maxnpart };
+      logger::Checkpoint("dx3 allocated", HERE);
+      i3_prev = array_t<int*> { label + "_i3_prev", maxnpart };
+      logger::Checkpoint("i3_prev allocated", HERE);
       dx3_prev = array_t<prtldx_t*> { label + "_dx3_prev", maxnpart };
+      logger::Checkpoint("dx3_prev allocated", HERE);
     }
 
     ux1 = array_t<real_t*> { label + "_ux1", maxnpart };
+    logger::Checkpoint("ux1 allocated", HERE);
     ux2 = array_t<real_t*> { label + "_ux2", maxnpart };
+    logger::Checkpoint("ux2 allocated", HERE);
     ux3 = array_t<real_t*> { label + "_ux3", maxnpart };
+    logger::Checkpoint("ux3 allocated", HERE);
 
     weight = array_t<real_t*> { label + "_w", maxnpart };
+    logger::Checkpoint("weight allocated", HERE);
 
     tag = array_t<short*> { label + "_tag", maxnpart };
+    logger::Checkpoint("tag allocated", HERE);
 
     if (npld_r > 0) {
       pld_r = array_t<real_t**> { label + "_pld_r", maxnpart, npld_r };
