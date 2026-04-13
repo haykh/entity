@@ -4,276 +4,272 @@
 #include "enums.h"
 #include "global.h"
 
-#include "utils/comparators.h"
 #include "utils/log.h"
 #include "utils/numeric.h"
 #include "utils/param_container.h"
 
 #include "metrics/traits.h"
 
-#include "archetypes/traits.h"
 #include "engines/srpic/utils.h"
 #include "framework/domain/domain.h"
 #include "framework/domain/grid.h"
 #include "framework/parameters/parameters.h"
-#include "kernels/emission/compton.hpp"
-#include "kernels/emission/emission.hpp"
-#include "kernels/emission/synchrotron.hpp"
-#include "kernels/emission/traits.h"
-#include "kernels/particle_pusher_sr.hpp"
+#include "kernels/pushers/policies_sr.h"
+#include "kernels/pushers/sr.hpp"
 
 namespace ntt {
   namespace srpic {
 
-    template <class M, class F, class PG, bool Atm>
-    void CallPusher_WithExternalFieldFlag(
-      Domain<SimEngine::SRPIC, M>&    domain,
-      const SimulationParams&         params,
-      const kernel::sr::PusherParams& pusher_params,
-      kernel::sr::PusherArrays&       pusher_arrays,
-      EmissionTypeFlag                emission_policy_flag,
-      const range_t<Dim::_1D>&        range,
-      const ndfield_t<M::Dim, 6>&     EB,
-      const M&                        metric,
-      const PG&                       pgen,
-      const F&                        external_fields) {
-      auto get_custom_prtl_update = [&]() {
-        if constexpr (
-          arch::traits::pgen::HasCustomPrtlUpdate<PG, M, decltype(domain)>) {
-          return pgen.CustomParticleUpdate(pusher_params.time,
-                                           pusher_params.species_index,
-                                           domain);
-        } else {
-          return kernel::sr::NoCustomPrtlUpdate_t<SimEngine::SRPIC, M> {};
-        }
-      };
-      const auto custom_prtl_update = get_custom_prtl_update();
-
-      if (emission_policy_flag == EmissionType::NONE) {
-        const auto no_emission = kernel::NoEmissionPolicy_t<SimEngine::SRPIC, M> {};
-        Kokkos::parallel_for(
-          "ParticlePusher",
-          range,
-          kernel::sr::Pusher_kernel<M, F, Atm, decltype(no_emission), decltype(custom_prtl_update)>(
-            pusher_params,
-            pusher_arrays,
-            EB,
-            metric,
-            external_fields,
-            no_emission,
-            custom_prtl_update));
-      } else if (emission_policy_flag == EmissionType::SYNCHROTRON) {
-        const auto photon_species = params.get<spidx_t>(
-          "radiation.emission.synchrotron.photon_species");
-        raise::ErrorIf(photon_species > domain.species.size(),
-                       "Invalid photon_species for Synchrotron emission",
-                       HERE);
-        auto& emitted_species = domain.species[photon_species - 1];
-        raise::ErrorIf(not cmp::AlmostZero_host(emitted_species.mass()),
-                       "Emitted photon species must have zero mass",
-                       HERE);
-        raise::ErrorIf(not cmp::AlmostZero_host(emitted_species.charge()),
-                       "Emitted photon species must have zero charge",
-                       HERE);
-        const auto emission_policy = kernel::emission::Synchrotron<M>(
-          emitted_species,
-          photon_species,
-          pusher_params.mass,
-          pusher_params.charge,
-          pusher_params.radiative_drag_flags,
-          domain.index(),
-          params,
-          domain.random_pool());
-        static_assert(
-          kernel::traits::emission::IsValid<kernel::emission::Synchrotron<M>, M>,
-          "Synchrotron emission policy does not satisfy the required "
-          "interface");
-        Kokkos::parallel_for(
-          "ParticlePusher",
-          range,
-          kernel::sr::Pusher_kernel<M, F, Atm, decltype(emission_policy), decltype(custom_prtl_update)>(
-            pusher_params,
-            pusher_arrays,
-            EB,
-            metric,
-            external_fields,
-            emission_policy,
-            custom_prtl_update));
-        const auto n_inj = emission_policy.numbers_injected();
-        raise::ErrorIf(n_inj.size() != 1,
-                       "Synchrotron emission should only inject one species",
-                       HERE);
-        domain.species[photon_species - 1].set_npart(
-          emitted_species.npart() + n_inj[0]);
-        domain.species[photon_species - 1].set_counter(
-          emitted_species.counter() + n_inj[0]);
-      } else if (emission_policy_flag == EmissionType::COMPTON) {
-        const auto photon_species = params.get<spidx_t>(
-          "radiation.emission.compton.photon_species");
-        raise::ErrorIf(photon_species > domain.species.size(),
-                       "Invalid photon_species for Compton emission",
-                       HERE);
-        auto& emitted_species = domain.species[photon_species - 1];
-        raise::ErrorIf(not cmp::AlmostZero_host(emitted_species.mass()),
-                       "Emitted photon species must have zero mass",
-                       HERE);
-        raise::ErrorIf(not cmp::AlmostZero_host(emitted_species.charge()),
-                       "Emitted photon species must have zero charge",
-                       HERE);
-        const auto emission_policy = kernel::emission::Compton<M>(
-          emitted_species,
-          photon_species,
-          pusher_params.mass,
-          pusher_params.charge,
-          pusher_params.radiative_drag_flags,
-          domain.index(),
-          params,
-          domain.random_pool());
-        static_assert(
-          kernel::traits::emission::IsValid<kernel::emission::Compton<M>, M>,
-          "Compton emission policy does not satisfy the required interface");
-        Kokkos::parallel_for(
-          "ParticlePusher",
-          range,
-          kernel::sr::Pusher_kernel<M, F, Atm, decltype(emission_policy), decltype(custom_prtl_update)>(
-            pusher_params,
-            pusher_arrays,
-            EB,
-            metric,
-            external_fields,
-            emission_policy,
-            custom_prtl_update));
-        const auto n_inj = emission_policy.numbers_injected();
-        raise::ErrorIf(n_inj.size() != 1,
-                       "Compton emission should only inject one species",
-                       HERE);
-        domain.species[photon_species - 1].set_npart(
-          emitted_species.npart() + n_inj[0]);
-        domain.species[photon_species - 1].set_counter(
-          emitted_species.counter() + n_inj[0]);
-      } else if (emission_policy_flag == EmissionType::CUSTOM) {
-        if constexpr (arch::traits::pgen::HasEmissionPolicy<PG, decltype(domain)>) {
-          const auto emission_policy = pgen.EmissionPolicy(pusher_params.time,
-                                                           pusher_params.species_index,
-                                                           domain);
-          static_assert(
-            kernel::traits::emission::IsValid<decltype(emission_policy), M>,
-            "Custom emission policy does not satisfy the required "
-            "interface");
-          Kokkos::parallel_for(
-            "ParticlePusher",
-            range,
-            kernel::sr::Pusher_kernel<M, F, Atm, decltype(emission_policy), decltype(custom_prtl_update)>(
-              pusher_params,
-              pusher_arrays,
-              EB,
-              metric,
-              external_fields,
-              emission_policy,
-              custom_prtl_update));
-          const auto emitted_species = emission_policy.emitted_species_indices();
-          const auto n_inj = emission_policy.numbers_injected();
-          raise::ErrorIf(emitted_species.size() != n_inj.size(),
-                         "Emission policy emitted_species_indices and "
-                         "numbers_injected must have the same size",
-                         HERE);
-          for (auto i = 0u; i < emitted_species.size(); ++i) {
-            const auto sp_idx = emitted_species[i];
-            raise::ErrorIf(sp_idx > domain.species.size(),
-                           "Invalid emitted species index from custom "
-                           "emission policy",
-                           HERE);
-            domain.species[sp_idx - 1].set_npart(
-              domain.species[sp_idx - 1].npart() + n_inj[i]);
-            domain.species[sp_idx - 1].set_counter(
-              domain.species[sp_idx - 1].counter() + n_inj[i]);
-          }
-        } else {
-          raise::Error("Custom emission policy flag is set but problem "
-                       "generator does not define an emission policy",
-                       HERE);
-        }
-      } else {
-        raise::Error("Unrecognized emission policy flag", HERE);
-      }
-    }
-
-    template <class M, class PG, bool Atm>
-    void CallPusher_WithAtmFlag(Domain<SimEngine::SRPIC, M>&    domain,
-                                const SimulationParams&         params,
-                                const kernel::sr::PusherParams& pusher_params,
-                                kernel::sr::PusherArrays&       pusher_arrays,
-                                EmissionTypeFlag         emission_policy_flag,
-                                const range_t<Dim::_1D>& range,
-                                const ndfield_t<M::Dim, 6>& EB,
-                                const M&                    metric,
-                                const PG&                   pgen) {
-      if constexpr (arch::traits::pgen::HasExternalFields<PG, decltype(domain)>) {
-        auto [apply_extfields,
-              external_fields] = pgen.ExternalFields(pusher_params.time,
-                                                     pusher_params.species_index,
-                                                     domain);
-        if (apply_extfields) {
-          CallPusher_WithExternalFieldFlag<M, decltype(external_fields), decltype(pgen), Atm>(
-            domain,
-            params,
-            pusher_params,
-            pusher_arrays,
-            emission_policy_flag,
-            range,
-            domain.fields.em,
-            domain.mesh.metric,
-            pgen,
-            external_fields);
-          return;
-        }
-      }
-      CallPusher_WithExternalFieldFlag<M, kernel::sr::NoField_t, decltype(pgen), Atm>(
-        domain,
-        params,
-        pusher_params,
-        pusher_arrays,
-        emission_policy_flag,
-        range,
-        domain.fields.em,
-        domain.mesh.metric,
-        pgen,
-        kernel::sr::NoField_t {});
-    }
-
-    template <class M, class PG>
-    void CallPusher(Domain<SimEngine::SRPIC, M>&    domain,
-                    const SimulationParams&         params,
-                    const kernel::sr::PusherParams& pusher_params,
-                    kernel::sr::PusherArrays&       pusher_arrays,
-                    EmissionTypeFlag                emission_policy_flag,
-                    const range_t<Dim::_1D>&        range,
-                    const ndfield_t<M::Dim, 6>&     EB,
-                    const M&                        metric,
-                    const PG&                       pgen,
-                    bool                            has_atmosphere) {
-      if (not has_atmosphere) {
-        CallPusher_WithAtmFlag<M, decltype(pgen), false>(domain,
-                                                         params,
-                                                         pusher_params,
-                                                         pusher_arrays,
-                                                         emission_policy_flag,
-                                                         range,
-                                                         domain.fields.em,
-                                                         domain.mesh.metric,
-                                                         pgen);
-      } else {
-        CallPusher_WithAtmFlag<M, decltype(pgen), true>(domain,
-                                                        params,
-                                                        pusher_params,
-                                                        pusher_arrays,
-                                                        emission_policy_flag,
-                                                        range,
-                                                        domain.fields.em,
-                                                        domain.mesh.metric,
-                                                        pgen);
-      }
-    }
+    // template <class M, class F, class PG, bool Atm>
+    // void CallPusher_WithExternalFieldFlag(
+    //   Domain<SimEngine::SRPIC, M>&    domain,
+    //   const SimulationParams&         params,
+    //   const kernel::sr::PusherParams& pusher_params,
+    //   kernel::sr::PusherArrays&       pusher_arrays,
+    //   EmissionTypeFlag                emission_policy_flag,
+    //   const range_t<Dim::_1D>&        range,
+    //   const ndfield_t<M::Dim, 6>&     EB,
+    //   const M&                        metric,
+    //   const PG&                       pgen,
+    //   const F&                        external_fields) {
+    //   const auto custom_prtl_update = [&]() {
+    //     if constexpr (
+    //       arch::traits::pgen::HasCustomPrtlUpdate<PG, M, decltype(domain)>) {
+    //       return pgen.CustomParticleUpdate(pusher_params.time,
+    //                                        pusher_params.species_index,
+    //                                        domain);
+    //     } else {
+    //       return kernel::traits::pusher::custom_particle_update::NoPolicy_t {};
+    //     }
+    //   }();
+    //
+    //   if (emission_policy_flag == EmissionType::NONE) {
+    //     const auto no_emission = kernel::traits::pusher::emission::NoPolicy_t {};
+    //     Kokkos::parallel_for(
+    //       "ParticlePusher",
+    //       range,
+    //       kernel::sr::Pusher_kernel<M, F, Atm, decltype(no_emission), decltype(custom_prtl_update)>(
+    //         pusher_params,
+    //         pusher_arrays,
+    //         EB,
+    //         metric,
+    //         external_fields,
+    //         no_emission,
+    //         custom_prtl_update));
+    //   } else if (emission_policy_flag == EmissionType::SYNCHROTRON) {
+    //     const auto photon_species = params.get<spidx_t>(
+    //       "radiation.emission.synchrotron.photon_species");
+    //     raise::ErrorIf(photon_species > domain.species.size(),
+    //                    "Invalid photon_species for Synchrotron emission",
+    //                    HERE);
+    //     auto& emitted_species = domain.species[photon_species - 1];
+    //     raise::ErrorIf(not cmp::AlmostZero_host(emitted_species.mass()),
+    //                    "Emitted photon species must have zero mass",
+    //                    HERE);
+    //     raise::ErrorIf(not cmp::AlmostZero_host(emitted_species.charge()),
+    //                    "Emitted photon species must have zero charge",
+    //                    HERE);
+    //     const auto emission_policy = kernel::emission::Synchrotron<M>(
+    //       emitted_species,
+    //       photon_species,
+    //       pusher_params.mass,
+    //       pusher_params.charge,
+    //       pusher_params.radiative_drag_flags,
+    //       domain.index(),
+    //       params,
+    //       domain.random_pool());
+    //     static_assert(
+    //       kernel::traits::pusher::emission::IsValid<kernel::emission::Synchrotron<M>, M>,
+    //       "Synchrotron emission policy does not satisfy the required "
+    //       "interface");
+    //     Kokkos::parallel_for(
+    //       "ParticlePusher",
+    //       range,
+    //       kernel::sr::Pusher_kernel<M, F, Atm, decltype(emission_policy), decltype(custom_prtl_update)>(
+    //         pusher_params,
+    //         pusher_arrays,
+    //         EB,
+    //         metric,
+    //         external_fields,
+    //         emission_policy,
+    //         custom_prtl_update));
+    //     const auto n_inj = emission_policy.numbers_injected();
+    //     raise::ErrorIf(n_inj.size() != 1,
+    //                    "Synchrotron emission should only inject one species",
+    //                    HERE);
+    //     domain.species[photon_species - 1].set_npart(
+    //       emitted_species.npart() + n_inj[0]);
+    //     domain.species[photon_species - 1].set_counter(
+    //       emitted_species.counter() + n_inj[0]);
+    //   } else if (emission_policy_flag == EmissionType::COMPTON) {
+    //     const auto photon_species = params.get<spidx_t>(
+    //       "radiation.emission.compton.photon_species");
+    //     raise::ErrorIf(photon_species > domain.species.size(),
+    //                    "Invalid photon_species for Compton emission",
+    //                    HERE);
+    //     auto& emitted_species = domain.species[photon_species - 1];
+    //     raise::ErrorIf(not cmp::AlmostZero_host(emitted_species.mass()),
+    //                    "Emitted photon species must have zero mass",
+    //                    HERE);
+    //     raise::ErrorIf(not cmp::AlmostZero_host(emitted_species.charge()),
+    //                    "Emitted photon species must have zero charge",
+    //                    HERE);
+    //     const auto emission_policy = kernel::emission::Compton<M>(
+    //       emitted_species,
+    //       photon_species,
+    //       pusher_params.mass,
+    //       pusher_params.charge,
+    //       pusher_params.radiative_drag_flags,
+    //       domain.index(),
+    //       params,
+    //       domain.random_pool());
+    //     static_assert(
+    //       kernel::traits::pusher::emission::IsValid<kernel::emission::Compton<M>, M>,
+    //       "Compton emission policy does not satisfy the required interface");
+    //     Kokkos::parallel_for(
+    //       "ParticlePusher",
+    //       range,
+    //       kernel::sr::Pusher_kernel<M, F, Atm, decltype(emission_policy), decltype(custom_prtl_update)>(
+    //         pusher_params,
+    //         pusher_arrays,
+    //         EB,
+    //         metric,
+    //         external_fields,
+    //         emission_policy,
+    //         custom_prtl_update));
+    //     const auto n_inj = emission_policy.numbers_injected();
+    //     raise::ErrorIf(n_inj.size() != 1,
+    //                    "Compton emission should only inject one species",
+    //                    HERE);
+    //     domain.species[photon_species - 1].set_npart(
+    //       emitted_species.npart() + n_inj[0]);
+    //     domain.species[photon_species - 1].set_counter(
+    //       emitted_species.counter() + n_inj[0]);
+    //   } else if (emission_policy_flag == EmissionType::CUSTOM) {
+    //     if constexpr (arch::traits::pgen::HasEmissionPolicy<PG, decltype(domain)>) {
+    //       const auto emission_policy = pgen.EmissionPolicy(pusher_params.time,
+    //                                                        pusher_params.species_index,
+    //                                                        domain);
+    //       static_assert(
+    //         kernel::traits::pusher::emission::IsValid<decltype(emission_policy), M>,
+    //         "Custom emission policy does not satisfy the required "
+    //         "interface");
+    //       Kokkos::parallel_for(
+    //         "ParticlePusher",
+    //         range,
+    //         kernel::sr::Pusher_kernel<M, F, Atm, decltype(emission_policy), decltype(custom_prtl_update)>(
+    //           pusher_params,
+    //           pusher_arrays,
+    //           EB,
+    //           metric,
+    //           external_fields,
+    //           emission_policy,
+    //           custom_prtl_update));
+    //       const auto emitted_species = emission_policy.emitted_species_indices();
+    //       const auto n_inj = emission_policy.numbers_injected();
+    //       raise::ErrorIf(emitted_species.size() != n_inj.size(),
+    //                      "Emission policy emitted_species_indices and "
+    //                      "numbers_injected must have the same size",
+    //                      HERE);
+    //       for (auto i = 0u; i < emitted_species.size(); ++i) {
+    //         const auto sp_idx = emitted_species[i];
+    //         raise::ErrorIf(sp_idx > domain.species.size(),
+    //                        "Invalid emitted species index from custom "
+    //                        "emission policy",
+    //                        HERE);
+    //         domain.species[sp_idx - 1].set_npart(
+    //           domain.species[sp_idx - 1].npart() + n_inj[i]);
+    //         domain.species[sp_idx - 1].set_counter(
+    //           domain.species[sp_idx - 1].counter() + n_inj[i]);
+    //       }
+    //     } else {
+    //       raise::Error("Custom emission policy flag is set but problem "
+    //                    "generator does not define an emission policy",
+    //                    HERE);
+    //     }
+    //   } else {
+    //     raise::Error("Unrecognized emission policy flag", HERE);
+    //   }
+    // }
+    //
+    // template <class M, class PG, bool Atm>
+    // void CallPusher_WithAtmFlag(Domain<SimEngine::SRPIC, M>&    domain,
+    //                             const SimulationParams&         params,
+    //                             const kernel::sr::PusherParams& pusher_params,
+    //                             kernel::sr::PusherArrays& pusher_arrays, EmissionTypeFlag emission_policy_flag,
+    //                             const range_t<Dim::_1D>& range,
+    //                             const ndfield_t<M::Dim, 6>& EB,
+    //                             const M&                    metric,
+    //                             const PG&                   pgen) {
+    //   if constexpr (arch::traits::pgen::HasExternalFields<PG, decltype(domain)>) {
+    //     auto [apply_extfields,
+    //           external_fields] = pgen.ExternalFields(pusher_params.time,
+    //                                                  pusher_params.species_index,
+    //                                                  domain);
+    //     if (apply_extfields) {
+    //       CallPusher_WithExternalFieldFlag<M, decltype(external_fields), decltype(pgen), Atm>(
+    //         domain,
+    //         params,
+    //         pusher_params,
+    //         pusher_arrays,
+    //         emission_policy_flag,
+    //         range,
+    //         domain.fields.em,
+    //         domain.mesh.metric,
+    //         pgen,
+    //         external_fields);
+    //       return;
+    //     }
+    //   }
+    //   CallPusher_WithExternalFieldFlag<M,
+    //                                    kernel::traits::pusher::external::NoPolicy_t,
+    //                                    decltype(pgen),
+    //                                    Atm>(
+    //     domain,
+    //     params,
+    //     pusher_params,
+    //     pusher_arrays,
+    //     emission_policy_flag,
+    //     range,
+    //     domain.fields.em,
+    //     domain.mesh.metric,
+    //     pgen,
+    //     kernel::traits::pusher::external::NoPolicy_t {});
+    // }
+    //
+    // template <class M, class PG>
+    // void CallPusher(Domain<SimEngine::SRPIC, M>&    domain,
+    //                 const SimulationParams&         params,
+    //                 const kernel::sr::PusherParams& pusher_params,
+    //                 kernel::sr::PusherArrays&       pusher_arrays,
+    //                 EmissionTypeFlag                emission_policy_flag,
+    //                 const range_t<Dim::_1D>&        range,
+    //                 const ndfield_t<M::Dim, 6>&     EB,
+    //                 const M&                        metric,
+    //                 const PG&                       pgen,
+    //                 bool                            has_atmosphere) {
+    //   if (not has_atmosphere) {
+    //     CallPusher_WithAtmFlag<M, decltype(pgen), false>(domain,
+    //                                                      params,
+    //                                                      pusher_params,
+    //                                                      pusher_arrays,
+    //                                                      emission_policy_flag,
+    //                                                      range,
+    //                                                      domain.fields.em,
+    //                                                      domain.mesh.metric,
+    //                                                      pgen);
+    //   } else {
+    //     CallPusher_WithAtmFlag<M, decltype(pgen), true>(domain,
+    //                                                     params,
+    //                                                     pusher_params,
+    //                                                     pusher_arrays,
+    //                                                     emission_policy_flag,
+    //                                                     range,
+    //                                                     domain.fields.em,
+    //                                                     domain.mesh.metric,
+    //                                                     pgen);
+    //   }
+    // }
 
     template <class M, class PG>
       requires metric::traits::HasD<M>
@@ -379,16 +375,24 @@ namespace ntt {
         }
         auto pusher_arrays = species.PusherKernelArrays();
 
-        CallPusher<M, decltype(pgen)>(domain,
-                                      params,
-                                      pusher_params,
-                                      pusher_arrays,
-                                      species.emission_policy_flag(),
-                                      species.rangeActiveParticles(),
-                                      domain.fields.em,
-                                      domain.mesh.metric,
-                                      pgen,
-                                      has_atmosphere);
+        kernel::pusher::MakePolicy<M>(
+          pgen,
+          domain,
+          params,
+          pusher_params,
+          species.emission_policy_flag(),
+          has_atmosphere,
+          [&](const auto& p) {
+            Kokkos::parallel_for(
+              "ParticlePusher",
+              species.rangeActiveParticles(),
+              kernel::sr::Pusher_kernel<M, std::decay_t<decltype(p)>> {
+                pusher_params,
+                pusher_arrays,
+                domain.fields.em,
+                domain.mesh.metric,
+                p });
+          });
       }
     }
 

@@ -8,6 +8,7 @@
 #include "archetypes/traits.h"
 #include "framework/domain/domain.h"
 #include "framework/parameters/parameters.h"
+#include "kernels/pushers/traits.h"
 
 #include <Kokkos_Core.hpp>
 
@@ -162,16 +163,20 @@ auto main(int argc, char* argv[]) -> int {
     };
     auto [apply_extfields,
           ext_fields] = custom_pgen.ExternalFields(ZERO, 0, domain);
-    if constexpr (not ::traits::external::HasFx1<decltype(ext_fields), Dim::_1D>) {
+    if constexpr (
+      not kernel::traits::pusher::external::HasFx1<decltype(ext_fields), Dim::_1D>) {
       throw std::runtime_error("CustomPgen's ext_fields should have fx1");
     }
-    if constexpr (not ::traits::external::HasEx1<decltype(ext_fields), Dim::_1D>) {
+    if constexpr (
+      not kernel::traits::pusher::external::HasEx1<decltype(ext_fields), Dim::_1D>) {
       throw std::runtime_error("CustomPgen's ext_fields should have ex1");
     }
-    if constexpr (::traits::external::HasBx1<decltype(ext_fields), Dim::_1D>) {
+    if constexpr (
+      kernel::traits::pusher::external::HasBx1<decltype(ext_fields), Dim::_1D>) {
       throw std::runtime_error("CustomPgen's ext_fields should not have bx1");
     }
-    if constexpr (not ::traits::external::HasBx3<decltype(ext_fields), Dim::_1D>) {
+    if constexpr (
+      not kernel::traits::pusher::external::HasBx3<decltype(ext_fields), Dim::_1D>) {
       throw std::runtime_error("CustomPgen's ext_current should have bx3");
     }
 

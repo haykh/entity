@@ -4,8 +4,6 @@
 #include "enums.h"
 #include "global.h"
 
-#include "arch/traits.h"
-
 #include "archetypes/energy_dist.h"
 #include "archetypes/particle_injector.h"
 #include "archetypes/problem_generator.h"
@@ -67,11 +65,11 @@ namespace user {
     inline void InitPrtls(Domain<S, M>& local_domain) {
       const auto empty = std::vector<real_t> {};
       const auto x1_e  = params.template get<std::vector<real_t>>("setup.x1_e",
-                                                                  empty);
+                                                                 empty);
       const auto x2_e  = params.template get<std::vector<real_t>>("setup.x2_e",
-                                                                  empty);
+                                                                 empty);
       const auto x3_e  = params.template get<std::vector<real_t>>("setup.x3_e",
-                                                                  empty);
+                                                                 empty);
       const auto phi_e = params.template get<std::vector<real_t>>("setup.phi_e",
                                                                   empty);
       const auto ux1_e = params.template get<std::vector<real_t>>("setup.ux1_e",
@@ -82,11 +80,11 @@ namespace user {
                                                                   empty);
 
       const auto x1_i  = params.template get<std::vector<real_t>>("setup.x1_i",
-                                                                  empty);
+                                                                 empty);
       const auto x2_i  = params.template get<std::vector<real_t>>("setup.x2_i",
-                                                                  empty);
+                                                                 empty);
       const auto x3_i  = params.template get<std::vector<real_t>>("setup.x3_i",
-                                                                  empty);
+                                                                 empty);
       const auto phi_i = params.template get<std::vector<real_t>>("setup.phi_i",
                                                                   empty);
       const auto ux1_i = params.template get<std::vector<real_t>>("setup.ux1_i",
@@ -154,7 +152,8 @@ namespace user {
           const int      delta_i1_to_wall  = pusher.i1_prev(p);
           const prtldx_t delta_dx1_to_wall = pusher.dx1_prev(p);
           const real_t dx_to_wall = i_di_to_Xi(delta_i1_to_wall, delta_dx1_to_wall);
-          const real_t dt_to_wall = dx_to_wall /
+          const real_t dt_to_wall =
+            dx_to_wall /
             pusher.metric.template transform<1, Idx::XYZ, Idx::U>(x_dummy,
                                                                   beta_x_p);
 
@@ -189,7 +188,8 @@ namespace user {
           const int      delta_i1_to_wall  = pusher.ni1 - 1 - pusher.i1_prev(p);
           const prtldx_t delta_dx1_to_wall = ONE - pusher.dx1_prev(p);
           const real_t dx_to_wall = i_di_to_Xi(delta_i1_to_wall, delta_dx1_to_wall);
-          const real_t dt_to_wall = dx_to_wall /
+          const real_t dt_to_wall =
+            dx_to_wall /
             pusher.metric.template transform<1, Idx::XYZ, Idx::U>(x_dummy,
                                                                   beta_x_p);
 

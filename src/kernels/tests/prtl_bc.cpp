@@ -7,8 +7,8 @@
 
 #include "metrics/minkowski.h"
 
-#include "kernels/emission/emission.hpp"
-#include "kernels/particle_pusher_sr.hpp"
+#include "kernels/pushers/sr.hpp"
+#include "kernels/pushers/traits.h"
 
 #include <Kokkos_Core.hpp>
 #include <Kokkos_ScatterView.hpp>
@@ -265,19 +265,23 @@ void testPeriodicBC(const std::vector<std::size_t>&      res,
   pusher_arrays.ux3      = ux3;
   pusher_arrays.phi      = phi;
   pusher_arrays.tag      = tag;
-  const auto no_emission = kernel::NoEmissionPolicy_t<SimEngine::SRPIC, M> {};
+  const auto no_emission = kernel::traits::emission::NoPolicy_t {};
   const auto no_custom_update = kernel::sr::NoCustomPrtlUpdate_t<SimEngine::SRPIC, M> {};
 
   for (auto n { 0 }; n < n_iter; ++n) {
     Kokkos::parallel_for(
       "pusher",
       CreateRangePolicy<Dim::_1D>({ 0 }, { 2 }),
-      kernel::sr::Pusher_kernel<M, kernel::sr::NoField_t, false, decltype(no_emission), decltype(no_custom_update)>(
+      kernel::sr::Pusher_kernel<M,
+                                kernel::traits::external::NoPolicy_t,
+                                false,
+                                decltype(no_emission),
+                                decltype(no_custom_update)>(
         pusher_params,
         pusher_arrays,
         emfield,
         metric,
-        kernel::sr::NoField_t {},
+        kernel::traits::external::NoPolicy_t {},
         no_emission,
         no_custom_update));
     auto i1_  = Kokkos::create_mirror_view(i1);

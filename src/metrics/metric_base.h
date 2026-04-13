@@ -51,6 +51,8 @@
 
 #include <vector>
 
+#include "traits/metric.h"
+
 namespace metric {
 
   namespace {
@@ -128,5 +130,8 @@ namespace metric {
   };
 
 } // namespace metric
+
+template <class M>
+concept Metric = traits::metric::HasD<M> and traits::metric::HasCoordType<M>;
 
 #endif // METRICS_METRIC_BASE_H

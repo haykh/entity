@@ -6,7 +6,8 @@
 
 #include "framework/containers/particles.h"
 #include "kernels/injectors.hpp"
-#include "kernels/particle_pusher_sr.hpp"
+#include "kernels/pushers/sr.hpp"
+#include "kernels/pushers/traits.h"
 
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Pair.hpp>
@@ -248,7 +249,8 @@ auto main(int argc, char* argv[]) -> int {
     };
 
     ndfield_t<Dim::_1D, 6> EB { "EB", 128u + 2u * N_GHOSTS };
-    const auto no_custom_update = kernel::sr::NoCustomPrtlUpdate_t<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>> {};
+    const auto             no_custom_update =
+      kernel::sr::NoCustomPrtlUpdate_t<SimEngine::SRPIC, metric::Minkowski<Dim::_1D>> {};
 
     for (auto step = 0u; step < 7u; ++step) {
       pusher_params.time   = static_cast<simtime_t>(step) * delta_t;
@@ -287,12 +289,16 @@ auto main(int argc, char* argv[]) -> int {
       Kokkos::parallel_for(
         "ParticlePusher",
         2u,
-        kernel::sr::Pusher_kernel<decltype(metric), kernel::sr::NoField_t, false, decltype(emission_policy), decltype(no_custom_update)>(
+        kernel::sr::Pusher_kernel<decltype(metric),
+                                  kernel::traits::external::NoPolicy_t,
+                                  false,
+                                  decltype(emission_policy),
+                                  decltype(no_custom_update)>(
           pusher_params,
           pusher_arrays,
           EB,
           metric,
-          kernel::sr::NoField_t {},
+          kernel::traits::external::NoPolicy_t {},
           emission_policy,
           no_custom_update));
       const auto n_injected = emission_policy.numbers_injected();

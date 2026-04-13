@@ -17,8 +17,6 @@
 #ifndef GLOBAL_UTILS_FORMATTING_H
 #define GLOBAL_UTILS_FORMATTING_H
 
-#include "arch/traits.h"
-
 #include <algorithm>
 #include <cctype>
 #include <memory>
@@ -28,6 +26,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "traits/traits.h"
 
 namespace fmt {
 
@@ -74,12 +74,6 @@ namespace fmt {
   };
 
   // generic
-
-  template <typename T>
-  struct is_pair : std::false_type {};
-
-  template <typename T, typename U>
-  struct is_pair<std::pair<T, U>> : std::true_type {};
 
   template <typename T>
   auto formatVector(const std::vector<T>& vec) -> std::string {

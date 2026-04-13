@@ -26,7 +26,7 @@
 #include "utils/error.h"
 #include "utils/numeric.h"
 
-#include "metrics/traits.h"
+#include "metrics/metric_bases.h"
 
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
@@ -34,8 +34,7 @@
 namespace arch {
   using namespace ntt;
 
-  template <SimEngine::type S, class M>
-    requires metric::traits::HasD<M>
+  template <SimEngine::type S, Metric M>
   struct EnergyDistribution {
     static constexpr auto D = M::Dim;
 

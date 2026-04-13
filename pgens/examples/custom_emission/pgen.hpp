@@ -10,8 +10,8 @@
 #include "archetypes/problem_generator.h"
 #include "archetypes/traits.h"
 #include "framework/domain/metadomain.h"
-#include "kernels/emission/traits.h"
 #include "kernels/injectors.hpp"
+#include "kernels/pushers/traits.h"
 
 #include <Kokkos_Pair.hpp>
 
@@ -184,12 +184,13 @@ namespace user {
       , metadomain { metadomain }
       , emission_probability { params.template get<real_t>(
           "setup.emission_probability") } {
-      static_assert(kernel::traits::emission::IsValid<RandomEmission<M>, M>, "RandomEmission does not satisfy the requirements of an emission policy");
+      static_assert(kernel::traits::pusher::emission::IsValid<RandomEmission<M>, M>,
+                    "RandomEmission does not satisfy the requirements of an "
+                    "emission policy");
     }
 
-    inline auto EmissionPolicy(simtime_t,
-                               spidx_t,
-                               Domain<S, M>& domain) const -> RandomEmission<M> {
+    inline auto EmissionPolicy(simtime_t, spidx_t, Domain<S, M>& domain) const
+      -> RandomEmission<M> {
       return RandomEmission<M> {
         domain.random_pool(),      emission_probability,
         domain.species[1].npart(), domain.species[1].i1,

@@ -25,7 +25,7 @@
 
 #include "framework/containers/species.h"
 #include "framework/domain/grid.h"
-#include "kernels/particle_pusher_sr.hpp"
+#include "kernels/pushers/base_sr.hpp"
 
 #include <Kokkos_Core.hpp>
 
