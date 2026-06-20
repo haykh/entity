@@ -27,7 +27,7 @@ let
     ];
     "NONE" = [
       pkgs.clang-tools
-      pkgs.gcc13
+      pkgs.libgcc
     ];
   };
   getArch =
