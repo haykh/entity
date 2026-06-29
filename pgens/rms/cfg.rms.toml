@@ -1,0 +1,98 @@
+[simulation]
+  name    = "rms"
+  engine  = "srpic"
+  runtime = 20000.0
+
+[grid]
+  resolution = [32768]
+  extent     = [[0.0, 4000.0]]
+
+  [grid.metric]
+    metric = "minkowski"
+
+  [grid.boundaries]
+    fields    = [["CONDUCTOR", "MATCH"]]
+    particles = [["REFLECT", "ABSORB"]]
+
+[scales]
+  larmor0    = 3.33333
+  skindepth0 = 1.0
+
+[algorithms]
+  current_filters = 8
+
+  [algorithms.timestep]
+    CFL = 0.7
+
+[two_body]
+  thomson_optical_depth = 1e-3
+
+  [[two_body.interaction]]
+    type      = "compton"
+    group1    = [1]
+    group2    = [3]
+    interval  = 1
+    tile_size = 8
+
+[particles]
+  ppc0 = 8.0
+
+  [[particles.species]]
+    label    = "e-"
+    mass     = 1.0
+    charge   = -1.0
+    maxnpart = 2e7
+
+  [[particles.species]]
+    label    = "i"
+    mass     = 25.0
+    charge   = 1.0
+    maxnpart = 2e7
+
+  [[particles.species]]
+    label    = "ph"
+    mass     = 0.0
+    charge   = 0.0
+    maxnpart = 2e7
+
+[setup]
+  drift_ux              = 0.1    # speed towards the wall [c]
+  temperature           = 0.0001 # temperature of maxwell distribution [T / (m0 c^2)]
+  temperature_ratio     = 1.0    # temperature ratio of electrons to protons
+  Bmag                  = 1.0    # magnetic field strength as fraction of magnetisation
+  Btheta                = 60.0   # magnetic field angle in the plane
+  Bphi                  = 0.0    # magnetic field angle out of plane
+  filling_fraction      = 1.0    # fraction of the shock piston filled with plasma
+  injector_velocity     = 0.0    # speed of injector [c]
+  injection_start       = 0.0    # start time of moving injector
+  injection_frequency   = 100
+  photon_injection_rate = 0.01
+
+[output]
+  interval_time = 100.0
+
+  [output.fields]
+    quantities = ["N_1", "N_2", "N_3", "B", "E"]
+    custom = [
+      "Temperature_e",
+      "Temperature_i",
+      "Temperature_ph",
+      "Vbx",
+      "Vby",
+      "Vbz",
+    ]
+    mom_smooth = 4
+
+  [output.particles]
+    enable = true
+    stride = 10
+
+  [output.spectra]
+    enable = true
+
+[checkpoint]
+  interval = 1000
+  keep     = 2
+
+[diagnostics]
+  colored_stdout = true
