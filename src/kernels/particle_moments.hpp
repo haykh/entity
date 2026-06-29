@@ -3,6 +3,7 @@
  * @brief Algorithm for computing different moments from particle distribution
  * @implements
  *   - kernel::ParticleMoments_kernel<>
+ *   - kernel::ParticleMomentsNew_kernel<>
  *   - kernel::NormalizeVectorByRho_kernel<>
  *   - kernel::Normalize4VelocityByNorm_kernel<>
  *   - kernel::Transform4VelocitySpatialToPhysical_kernel<>
@@ -30,6 +31,29 @@
 
 namespace kernel {
   using namespace ntt;
+
+  namespace particle_moment_functor {
+
+    template <class MF>
+    concept IsValid = requires(const MF&              fm,
+                               const ParticleArrays&  prtls,
+                               float                  mass,
+                               float                  charge,
+                               prtlidx_t              p,
+                               list_t<real_t, MF::N>& buffer) {
+      { fm(prtls, mass, charge, p, buffer) } -> std::same_as<void>;
+    };
+
+    template <class MF>
+    concept HasN = requires {
+      { MF::N } -> std::convertible_to<uint8_t>;
+    };
+
+  } // namespace particle_moment_functor
+
+  template <class MF>
+  concept ParticleMomentsFunctor = particle_moment_functor::IsValid<MF> &&
+                                   particle_moment_functor::HasN<MF>;
 
   template <FldsID::type F>
   auto get_contrib(float mass, float charge) -> real_t {
@@ -402,6 +426,244 @@ namespace kernel {
                               particles.i2(p) + di2 + N_GHOSTS,
                               particles.i3(p) + di3 + N_GHOSTS,
                               buff_idx) += coeff * shape_coeff;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+
+  /**
+   * @brief Generic moment-deposition kernel.
+   *
+   * Computes a per-particle scalar via the supplied @p Func and deposits it onto
+   * a scatter buffer, automatically applying volume normalization, weighting,
+   * smoothing (shape function) and axis reflection. @p Func is any device-
+   * callable object with signature
+   *   `Inline auto operator()(const ParticleArrays&, prtlidx_t, const M&) const
+   *      -> real_t`
+   * i.e. it receives the particle container, the particle index, and the metric,
+   * and returns the raw (un-normalized, un-weighted, un-smoothed) contribution of
+   * that particle to the moment.
+   *
+   * @tparam M    Metric type
+   * @tparam N    Last dimension of the buffer
+   * @tparam Func Per-particle contribution functor (deduced)
+   */
+  template <MetricClass M, uint8_t N, ParticleMomentsFunctor MF>
+  class ParticleMomentsNew_kernel {
+    static_assert(
+      MF::N <= N,
+      "Buffer size N must be >= number of components N deposited by Func");
+    static constexpr auto D = M::Dim;
+
+    const MF                          func;
+    scatter_ndfield_t<D, N>           Buff;
+    const Kokkos::Array<idx_t, MF::N> buff_indices;
+    const ParticleArrays       particles;
+    const float                mass, charge;
+    const bool                 use_weights;
+    const bool                 apply_norm;
+    const M                    metric;
+    const int                  ni2;
+    const real_t               inv_n0;
+
+    const uint8_t                 order;
+    const uint8_t                 window;
+    const OutputSmoothingTypeFlag smoothing;
+
+    bool is_axis_i2min { false }, is_axis_i2max { false };
+
+  public:
+    ParticleMomentsNew_kernel(
+      const MF&                              func,
+      const scatter_ndfield_t<D, N>&         scatter_buff,
+      const Kokkos::Array<idx_t, MF::N>&     buff_indices,
+      const Particles<M::Dim, M::CoordType>& particles,
+      bool                                   use_weights,
+      const M&                               metric,
+      const boundaries_t<FldsBC>&            boundaries,
+      ncells_t                               ni2,
+      real_t                                 inv_n0,
+      uint8_t                                order = 0u,
+      OutputSmoothingTypeFlag smoothing  = OutputSmoothingType::SPLINE,
+      bool                    apply_norm = true)
+      : func { func }
+      , Buff { scatter_buff }
+      , buff_indices { buff_indices }
+      , particles { static_cast<const ParticleArrays&>(particles) }
+      , mass { particles.mass() }
+      , charge { particles.charge() }
+      , use_weights { use_weights }
+      , apply_norm { apply_norm }
+      , metric { metric }
+      , ni2 { static_cast<int>(ni2) }
+      , inv_n0 { inv_n0 }
+      , order { order }
+      , smoothing { smoothing }
+      , window { static_cast<uint8_t>(
+          math::ceil(static_cast<float>(order) / 2.0f)) } {
+      raise::ErrorIf(window > N_GHOSTS, "Window size too large", HERE);
+      if constexpr ((M::CoordType != Coord::Cartesian) &&
+                    ((D == Dim::_2D) || (D == Dim::_3D))) {
+        raise::ErrorIf(boundaries.size() < 2, "boundaries defined incorrectly", HERE);
+        is_axis_i2min = (boundaries[1].first == FldsBC::AXIS);
+        is_axis_i2max = (boundaries[1].second == FldsBC::AXIS);
+      }
+    }
+
+    Inline auto shapeFunction(real_t delta_x) const -> real_t {
+      if (smoothing == OutputSmoothingType::SPLINE) {
+        if (order == 0) {
+          return ONE;
+        } else if (order == 1) {
+          return prtl_shape::S1(delta_x);
+        } else if (order == 2) {
+          return prtl_shape::S2(delta_x);
+        } else if (order == 3) {
+          return prtl_shape::S3(delta_x);
+        } else if (order == 4) {
+          return prtl_shape::S4(delta_x);
+        } else if (order == 5) {
+          return prtl_shape::S5(delta_x);
+        } else if (order == 6) {
+          return prtl_shape::S6(delta_x);
+        } else if (order == 7) {
+          return prtl_shape::S7(delta_x);
+        } else if (order == 8) {
+          return prtl_shape::S8(delta_x);
+        } else if (order == 9) {
+          return prtl_shape::S9(delta_x);
+        } else if (order == 10) {
+          return prtl_shape::S10(delta_x);
+        } else if (order == 11) {
+          return prtl_shape::S11(delta_x);
+        } else {
+          raise::KernelError(HERE, "Unsupported shape function order");
+          return ZERO;
+        }
+      } else if (smoothing == OutputSmoothingType::CONST) {
+        return ONE / (TWO * static_cast<real_t>(window) + ONE);
+      } else {
+        raise::KernelError(HERE, "Unsupported smoothing method");
+        return ZERO;
+      }
+    }
+
+    Inline void operator()(prtlidx_t p) const {
+      if (particles.tag(p) == ParticleTag::dead) {
+        return;
+      }
+      list_t<real_t, MF::N> contributions { ZERO };
+      func(particles, mass, charge, p, contributions);
+      for (uint8_t i = 0; i < MF::N; ++i) {
+        // apply volume normalization and (optionally) particle weights;
+        // skipped e.g. for nppc, which counts raw particles per cell
+        if constexpr (D == Dim::_1D) {
+          contributions[i] *= inv_n0 /
+                              metric.sqrt_det_h(
+                                { static_cast<real_t>(particles.i1(p)) + HALF });
+        } else if constexpr (D == Dim::_2D) {
+          contributions[i] *= inv_n0 /
+                              metric.sqrt_det_h(
+                                { static_cast<real_t>(particles.i1(p)) + HALF,
+                                  static_cast<real_t>(particles.i2(p)) + HALF });
+        } else if constexpr (D == Dim::_3D) {
+          contributions[i] *= inv_n0 /
+                              metric.sqrt_det_h(
+                                { static_cast<real_t>(particles.i1(p)) + HALF,
+                                  static_cast<real_t>(particles.i2(p)) + HALF,
+                                  static_cast<real_t>(particles.i3(p)) + HALF });
+        }
+        if (use_weights) {
+          contributions[i] *= particles.weight(p);
+        }
+      }
+      auto buff_access = Buff.access();
+      for (uint8_t i = 0; i < MF::N; ++i) {
+        const auto coeff    = contributions[i];
+        const auto buff_idx = buff_indices[i];
+        if constexpr (D == Dim::_1D) {
+          for (auto di1 { -window }; di1 <= window; ++di1) {
+            const real_t delta_x1 = math::abs(static_cast<real_t>(particles.dx1(p)) -
+                                              (static_cast<real_t>(di1) + HALF));
+            buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                        buff_idx) += coeff * shapeFunction(delta_x1);
+          }
+        } else if constexpr (D == Dim::_2D) {
+          for (auto di2 { -window }; di2 <= window; ++di2) {
+            for (auto di1 { -window }; di1 <= window; ++di1) {
+              const real_t delta_x1 = math::abs(
+                static_cast<real_t>(particles.dx1(p)) -
+                (static_cast<real_t>(di1) + HALF));
+              const real_t delta_x2 = math::abs(
+                static_cast<real_t>(particles.dx2(p)) -
+                (static_cast<real_t>(di2) + HALF));
+              const auto shape_coeff = shapeFunction(delta_x1) *
+                                       shapeFunction(delta_x2);
+              if constexpr (M::CoordType == Coord::Cartesian) {
+                buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                            particles.i2(p) + di2 + N_GHOSTS,
+                            buff_idx) += coeff * shape_coeff;
+              } else {
+                // reflect contribution at axes
+                if (is_axis_i2min && (particles.i2(p) + di2 < 0)) {
+                  buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                              N_GHOSTS - (particles.i2(p) + di2),
+                              buff_idx) += coeff * shape_coeff;
+                } else if (is_axis_i2max && (particles.i2(p) + di2 >= ni2)) {
+                  buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                              2 * ni2 - (particles.i2(p) + di2) + N_GHOSTS,
+                              buff_idx) += coeff * shape_coeff;
+                } else {
+                  buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                              particles.i2(p) + di2 + N_GHOSTS,
+                              buff_idx) += coeff * shape_coeff;
+                }
+              }
+            }
+          }
+        } else if constexpr (D == Dim::_3D) {
+          for (auto di3 { -window }; di3 <= window; ++di3) {
+            for (auto di2 { -window }; di2 <= window; ++di2) {
+              for (auto di1 { -window }; di1 <= window; ++di1) {
+                const auto delta_x1 = math::abs(
+                  static_cast<real_t>(particles.dx1(p)) -
+                  (static_cast<real_t>(di1) + HALF));
+                const auto delta_x2 = math::abs(
+                  static_cast<real_t>(particles.dx2(p)) -
+                  (static_cast<real_t>(di2) + HALF));
+                const auto delta_x3 = math::abs(
+                  static_cast<real_t>(particles.dx3(p)) -
+                  (static_cast<real_t>(di3) + HALF));
+                const auto shape_coeff = shapeFunction(delta_x1) *
+                                         shapeFunction(delta_x2) *
+                                         shapeFunction(delta_x3);
+                if constexpr (M::CoordType == Coord::Cartesian) {
+                  buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                              particles.i2(p) + di2 + N_GHOSTS,
+                              particles.i3(p) + di3 + N_GHOSTS,
+                              buff_idx) += coeff * shape_coeff;
+                } else {
+                  // reflect contribution at axes
+                  if (is_axis_i2min && (particles.i2(p) + di2 < 0)) {
+                    buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                                N_GHOSTS - (particles.i2(p) + di2),
+                                particles.i3(p) + di3 + N_GHOSTS,
+                                buff_idx) += coeff * shape_coeff;
+                  } else if (is_axis_i2max && (particles.i2(p) + di2 >= ni2)) {
+                    buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                                2 * ni2 - (particles.i2(p) + di2) + N_GHOSTS,
+                                particles.i3(p) + di3 + N_GHOSTS,
+                                buff_idx) += coeff * shape_coeff;
+                  } else {
+                    buff_access(particles.i1(p) + di1 + N_GHOSTS,
+                                particles.i2(p) + di2 + N_GHOSTS,
+                                particles.i3(p) + di3 + N_GHOSTS,
+                                buff_idx) += coeff * shape_coeff;
+                  }
                 }
               }
             }

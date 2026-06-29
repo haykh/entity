@@ -178,6 +178,53 @@ namespace arch {
     Kokkos::Experimental::contribute(buffer, scatter_buff);
   }
 
+  template <SimEngine::type S, MetricClass M, kernel::ParticleMomentsFunctor MF, uint8_t N>
+  inline void ComputeMomentWithSpeciesNew(
+    const SimulationParams&            params,
+    const Domain<S, M>&                domain,
+    const std::vector<spidx_t>&        species,
+    ndfield_t<M::Dim, N>&              buffer,
+    const Kokkos::Array<idx_t, MF::N>& buff_indices,
+    const MF&                          func,
+    uint8_t                            smoothing_order = 0u,
+    OutputSmoothingTypeFlag smoothing_method = OutputSmoothingType::SPLINE) {
+    const auto ni2         = domain.mesh.n_active(in::x2);
+    const auto inv_n0      = ONE / params.template get<real_t>("scales.n0");
+    const auto use_weights = params.template get<bool>("particles.use_weights");
+
+    for (const auto idx : buff_indices) {
+      if constexpr (M::Dim == Dim::_1D) {
+        Kokkos::deep_copy(Kokkos::subview(buffer, Kokkos::ALL(), idx), ZERO);
+      } else if constexpr (M::Dim == Dim::_2D) {
+        Kokkos::deep_copy(Kokkos::subview(buffer, Kokkos::ALL, Kokkos::ALL, idx),
+                          ZERO);
+      } else if constexpr (M::Dim == Dim::_3D) {
+        Kokkos::deep_copy(
+          Kokkos::subview(buffer, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, idx),
+          ZERO);
+      }
+    }
+    auto scatter_buff = Kokkos::Experimental::create_scatter_view(buffer);
+    for (const auto sp : species) {
+      const auto& prtl_spec = domain.species[sp - 1];
+      Kokkos::parallel_for(
+        "ComputeMoment",
+        prtl_spec.rangeActiveParticles(),
+        kernel::ParticleMomentsNew_kernel<M, N, MF>(func,
+                                                    scatter_buff,
+                                                    buff_indices,
+                                                    prtl_spec,
+                                                    use_weights,
+                                                    domain.mesh.metric,
+                                                    domain.mesh.flds_bc(),
+                                                    ni2,
+                                                    inv_n0,
+                                                    smoothing_order,
+                                                    smoothing_method));
+    }
+    Kokkos::Experimental::contribute(buffer, scatter_buff);
+  }
+
   template <SimEngine::type S, MetricClass M, class F>
   inline void UpdateEMFields(Domain<S, M>& domain, const F& fieldsetter) {
     if constexpr (S == SimEngine::SRPIC) {
