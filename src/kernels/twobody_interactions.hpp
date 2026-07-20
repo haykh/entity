@@ -101,6 +101,84 @@ namespace kernel::mink {
       return ncells_on_tile;
     }
 
+    namespace {
+      struct PackIndex {
+        const npart_t          offset;
+        const CollisionSpecies species;
+        array_t<uint64_t*>     combined_idx;
+        array_t<ncells_t*>     combined_tileidx;
+
+        PackIndex(npart_t                 offset,
+                  const CollisionSpecies& species,
+                  array_t<uint64_t*>&     combined_idx,
+                  array_t<ncells_t*>&     combined_tileidx)
+          : offset { offset }
+          , species { species }
+          , combined_idx { combined_idx }
+          , combined_tileidx { combined_tileidx } {}
+
+        Inline void operator()(prtlidx_t p) const {
+          // pack species idx into top 8 bits + prtl index into the remaining 56 bits
+          combined_idx(offset + p) = (static_cast<uint64_t>(species.sp) << 56) |
+                                     static_cast<uint64_t>(p);
+          combined_tileidx(offset + p) = species.tileidx(p);
+        }
+      };
+
+      struct CombineNumPpt {
+        const CollisionSpecies species;
+        array_t<npart_t*>      combined_num_ppt;
+
+        CombineNumPpt(const CollisionSpecies& species,
+                      array_t<npart_t*>&      combined_num_ppt)
+          : species { species }
+          , combined_num_ppt { combined_num_ppt } {}
+
+        Inline void operator()(cellidx_t t) const {
+          combined_num_ppt(t) += species.num_ppt(t);
+        }
+      };
+
+      struct PackRandom {
+        const array_t<ncells_t*> combined_tileidx;
+        array_t<uint64_t*>       shuffle_key;
+        random_number_pool_t     random_pool;
+
+        PackRandom(const array_t<ncells_t*>& combined_tileidx,
+                   array_t<uint64_t*>&       shuffle_key,
+                   random_number_pool_t&     random_pool)
+          : combined_tileidx { combined_tileidx }
+          , shuffle_key { shuffle_key }
+          , random_pool { random_pool } {}
+
+        Inline void operator()(prtlidx_t p) const {
+          auto       gen = random_pool.get_state();
+          const auto rnd = static_cast<uint64_t>(gen.urand());
+          random_pool.free_state(gen);
+          const auto tile_idx = static_cast<uint64_t>(combined_tileidx(p));
+          // packing top 32 bits with tile index, and the rest -- random
+          shuffle_key(p)      = (tile_idx << 32) | rnd;
+        }
+      };
+
+      struct TileOffsets {
+        array_t<npart_t*> tile_offsets;
+        array_t<npart_t*> combined_num_ppt;
+
+        TileOffsets(array_t<npart_t*>&       tile_offsets,
+                    const array_t<npart_t*>& combined_num_ppt)
+          : tile_offsets { tile_offsets }
+          , combined_num_ppt { combined_num_ppt } {}
+
+        Inline void operator()(cellidx_t t, npart_t& acc, const bool is_final) const {
+          if (is_final) {
+            tile_offsets(t) = acc;
+          }
+          acc += combined_num_ppt(t);
+        }
+      };
+    } // namespace
+
     template <Dimension D>
     struct CollisionGroup {
       std::vector<CollisionSpecies> group;
@@ -161,20 +239,11 @@ namespace kernel::mink {
             Kokkos::parallel_for(
               "CombineInGroup",
               species.npart,
-              ClassLambda(const npart_t p) {
-                // pack species idx into top 8 bits + prtl index into the remaining 56 bits
-                combined_idx(offset + p) = (static_cast<uint64_t>(species.sp)
-                                            << 56) |
-                                           static_cast<uint64_t>(p);
-                combined_tileidx(offset + p) = species.tileidx(p);
-              });
+              PackIndex { offset, species, combined_idx, combined_tileidx });
             offset += species.npart;
-            Kokkos::parallel_for(
-              "CombineNumPpt",
-              species.num_tiles,
-              ClassLambda(const ncells_t t) {
-                combined_num_ppt(t) += species.num_ppt(t);
-              });
+            Kokkos::parallel_for("CombineNumPpt",
+                                 species.num_tiles,
+                                 CombineNumPpt { species, combined_num_ppt });
             Kokkos::fence();
           }
         }
@@ -184,29 +253,16 @@ namespace kernel::mink {
           Kokkos::parallel_for(
             "PackRandom",
             tot_npart,
-            ClassLambda(const npart_t p) {
-              auto       gen = random_pool.get_state();
-              const auto rnd = static_cast<uint64_t>(gen.urand());
-              random_pool.free_state(gen);
-              const auto tile_idx = static_cast<uint64_t>(combined_tileidx(p));
-              // packing top 32 bits with tile index, and the rest -- random
-              shuffle_key(p)      = (tile_idx << 32) | rnd;
-            });
+            PackRandom { combined_tileidx, shuffle_key, random_pool });
           Kokkos::Experimental::sort_by_key(Kokkos::DefaultExecutionSpace {},
                                             shuffle_key,
                                             combined_idx);
         }
         {
           // compute index offsets for each tile
-          Kokkos::parallel_scan(
-            "TileOffsets",
-            num_tiles,
-            ClassLambda(cellidx_t t, npart_t & acc, const bool final) {
-              if (final) {
-                tile_offsets(t) = acc;
-              }
-              acc += combined_num_ppt(t);
-            });
+          Kokkos::parallel_scan("TileOffsets",
+                                num_tiles,
+                                TileOffsets { tile_offsets, combined_num_ppt });
         }
       }
     };

@@ -39,9 +39,7 @@ namespace ntt {
             prm::Parameters compton_params;
             compton_params.set("compton_scattering.nominal_probability_density",
                                nominal_thomson_probability_density);
-            auto recoil1 = interaction.recoil1;
-            auto recoil2 = interaction.recoil2;
-            auto launch  = [&]<bool R1, bool R2>() {
+            auto launch = [&]<bool R1, bool R2>() {
               auto policy = arch::qed::ComptonScattering<M::Dim, R1, R2>(
                 compton_params,
                 domain.random_pool());
@@ -54,7 +52,7 @@ namespace ntt {
                   domain.species[sp_lepton - 1].mass() == ZERO,
                   fmt::format(
                     "Species %u is massless but is in the lepton group "
-                     "of a Compton interaction",
+                    "of a Compton interaction",
                     sp_lepton),
                   HERE);
                 group1_species.push_back(&domain.species[sp_lepton - 1]);
@@ -64,7 +62,7 @@ namespace ntt {
                   domain.species[sp_photon - 1].mass() != ZERO,
                   fmt::format(
                     "Species %u is massive but is in the photon group "
-                     "of a Compton interaction",
+                    "of a Compton interaction",
                     sp_photon),
                   HERE);
                 group2_species.push_back(&domain.species[sp_photon - 1]);
